@@ -7,6 +7,8 @@ const {
   ComponentType
 } = require('discord.js');
 
+const { client } = require('../client.js');
+const { guildId } = require('../config.json');
 const User = require('../models/user.js');
 const Duel = require('../models/duel.js');
 const { weapons, armors } = require('../constants.js');
@@ -30,12 +32,10 @@ module.exports = {
     .setName('play')
     .setDescription('Play the game!'),
   async execute(interaction) {
-    await interaction.deferReply();
     // TODO: Check if user is registered (Use transaction or atomic operation)
     let user = await User.findOne({ discord_id: interaction.user.id });
-    console.log(user);
     if (!user) {
-      await interaction.editReply({
+      await interaction.reply({
         content:
           'You are not registered! Please use /register command to register.',
         ephemeral: true
@@ -56,7 +56,7 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(duel, random_encounter);
 
-    const response = await interaction.editReply({
+    const response = await interaction.reply({
       embeds: [embed],
       components: [row],
       ephemeral: true
@@ -66,7 +66,6 @@ module.exports = {
       componentType: ComponentType.Button,
       time: 3_600_000
     });
-
     collector.on('collect', async (i) => {
       // TODO: Other users should not see other users' bot responses. Check this later.
       if (i.user.id !== interaction.user.id) {
@@ -160,6 +159,13 @@ module.exports = {
         );
         await loser.save();
         const isLoserDead = loser.health_points === 0;
+        const guild = await client.guilds.cache.get(guildId);
+        const winnerName = guild
+          ? await guild.members.cache.get(winner.discord_id)?.displayName
+          : await guild?.members?.fetch(winner.discord_id)?.displayName;
+        const loserName = guild
+          ? await guild.members.cache.get(loser.discord_id)?.displayName
+          : await guild?.members?.fetch(loser.discord_id)?.displayName;
         if (isLoserDead) {
           const earnedGold = Math.floor(
             loser.gold +
@@ -174,7 +180,7 @@ module.exports = {
           // TODO: Use usernames instead of discord ids.
           // TODO: Use gold instead of golds when it is 1.
           await i.update({
-            content: `${winner.discord_id} has won the duel and gained ${earnedGold} golds! ${loser.discord_id} has died!`,
+            content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has died!`,
             embeds: [embed],
             components: [row],
             ephemeral: true
@@ -188,7 +194,7 @@ module.exports = {
             discord_id: { $in: [winner.discord_id, loser.discord_id] }
           });
           await i.update({
-            content: `${winner.discord_id} has won the duel and gained ${earnedGold} golds! ${loser.discord_id} has lost the duel and lost ${earnedGold} golds!`,
+            content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has lost the duel and lost ${earnedGold} golds!`,
             embeds: [embed],
             components: [row],
             ephemeral: true
