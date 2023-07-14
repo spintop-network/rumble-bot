@@ -102,6 +102,11 @@ const createRow = (custom_ids = ['status']) => {
       label: 'Sell Armor',
       style: ButtonStyle.Danger
     },
+    buy_potion: {
+      customId: 'buy_potion',
+      label: 'Buy Potion',
+      style: ButtonStyle.Primary
+    },
     shop: {
       customId: 'shop',
       label: 'Shop',
@@ -161,7 +166,11 @@ const createExtraRows = (obj, key) => {
         'sell_weapon',
         'buy_armor',
         'sell_armor'
+        // TODO: Problem is there can be 5 buttons at most in a row. Can I add another row?
+        // 'buy_potion'
       ]);
+    } else if (key === 'shop_second') {
+      obj[key] = createRow(['buy_potion']);
     } else if (key === 'buy_weapon') {
       obj[key] = createRow(['weapon_list']);
     } else if (key === 'buy_armor') {
@@ -210,12 +219,13 @@ module.exports = {
         const weapon = weapons[i.values[0]];
         if (user.gold < weapon.cost) {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed('Ooops!', 'You do not have enough gold.'),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         } else {
@@ -224,12 +234,13 @@ module.exports = {
           user.attack_power += weapon.attack_power;
           await user.save();
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed('Hurray!', 'You have bought a weapon!'),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         }
@@ -237,12 +248,13 @@ module.exports = {
         const armor = armors[i.values[0]];
         if (user.gold < armor.cost) {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed('Ooops!', 'You do not have enough gold.'),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         } else {
@@ -250,12 +262,13 @@ module.exports = {
           user.armor = armor.name;
           await user.save();
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed('Hurray!', 'You have bought an armor!'),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         }
@@ -418,9 +431,10 @@ module.exports = {
       } else if (i.customId === 'shop') {
         try {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [createShopEmbed(user)],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         } catch (err) {
@@ -432,9 +446,44 @@ module.exports = {
             ephemeral: true
           });
         }
+      } else if (i.customId === 'buy_potion') {
+        if (user.gold < user.health_potion_cost) {
+          createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
+          await i.update({
+            embeds: [
+              createNotificationEmbed(
+                'Ooops!',
+                'You do not have enough gold to buy a health potion!'
+              ),
+              createShopEmbed(user)
+            ],
+            components: [extraRows.shop, extraRows.shop_second],
+            ephemeral: true
+          });
+        } else {
+          user.gold -= user.health_potion_cost;
+          user.health_points = Math.min(user.health_points + 33, 100);
+          user.health_potion_cost *= 2;
+          await user.save();
+          createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
+          await i.update({
+            embeds: [
+              createNotificationEmbed(
+                'Success!',
+                'You have bought and used a health potion!'
+              ),
+              createShopEmbed(user)
+            ],
+            components: [extraRows.shop, extraRows.shop_second],
+            ephemeral: true
+          });
+        }
       } else if (i.customId === 'buy_weapon') {
         if (user.weapon) {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed(
@@ -443,7 +492,7 @@ module.exports = {
               ),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         } else {
@@ -457,6 +506,7 @@ module.exports = {
       } else if (i.customId === 'sell_weapon') {
         if (!user.weapon) {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed(
@@ -465,12 +515,13 @@ module.exports = {
               ),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
           return;
         }
         createExtraRows(extraRows, 'shop');
+        createExtraRows(extraRows, 'shop_second');
         const weapon = Object.values(weapons).find(
           (w) => w.name === user.weapon
         );
@@ -486,12 +537,13 @@ module.exports = {
             ),
             createShopEmbed(user)
           ],
-          components: [extraRows.shop],
+          components: [extraRows.shop, extraRows.shop_second],
           ephemeral: true
         });
       } else if (i.customId === 'buy_armor') {
         if (user.armor) {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed(
@@ -500,7 +552,7 @@ module.exports = {
               ),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
         } else {
@@ -515,6 +567,7 @@ module.exports = {
         console.log('sell armor');
         if (!user.armor) {
           createExtraRows(extraRows, 'shop');
+          createExtraRows(extraRows, 'shop_second');
           await i.update({
             embeds: [
               createNotificationEmbed(
@@ -523,12 +576,13 @@ module.exports = {
               ),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop],
+            components: [extraRows.shop, extraRows.shop_second],
             ephemeral: true
           });
           return;
         }
         createExtraRows(extraRows, 'shop');
+        createExtraRows(extraRows, 'shop_second');
         const armor = Object.values(armors).find((a) => a.name === user.armor);
         user.gold += Math.floor(armor.cost / 2);
         user.armor = null;
@@ -541,7 +595,7 @@ module.exports = {
             ),
             createShopEmbed(user)
           ],
-          components: [extraRows.shop],
+          components: [extraRows.shop, extraRows.shop_second],
           ephemeral: true
         });
       }
