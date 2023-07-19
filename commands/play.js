@@ -9,25 +9,36 @@ const {
   ComponentType,
   bold
 } = require('discord.js');
+const mongoose = require('mongoose');
 
 const { client } = require('../client.js');
 const { guildId } = require('../config.json');
 const User = require('../models/user.js');
 const Duel = require('../models/duel.js');
-const { weapons, armors } = require('../constants.js');
+const { weapons, armors, BASE_DAMAGE } = require('../constants.js');
 
 const createEmbed = (user) => {
-  return new EmbedBuilder()
-    .setTitle('Welcome to the game!')
-    .addFields(
-      { name: 'Health Points', value: `${user.health_points}/100` },
-      { name: 'Attack Power', value: `${user.attack_power}` },
-      { name: 'Energy Points', value: `${user.energy_points}/3` },
-      { name: 'Gold', value: `${user.gold}` },
-      { name: 'Health Potion Cost', value: `${user.health_potion_cost}` },
-      { name: 'Weapon', value: user.weapon ?? 'None' },
-      { name: 'Armor', value: user.armor ?? 'None' }
-    );
+  return new EmbedBuilder().setTitle('Welcome to the game!').addFields(
+    {
+      name: 'Health Points',
+      value: `${user.health_points}/100`,
+      inline: true
+    },
+    { name: 'Attack Power', value: `${user.attack_power}`, inline: true },
+    { name: 'Energy Points', value: `${user.energy_points}/3`, inline: true },
+    {
+      name: '<:zpintop:1129374515365945364> Gold',
+      value: `${user.gold}`,
+      inline: true
+    },
+    {
+      name: 'Health Potion Cost',
+      value: `${user.health_potion_cost}`,
+      inline: true
+    },
+    { name: 'Weapon', value: user.weapon ?? 'None', inline: true },
+    { name: 'Armor', value: user.armor ?? 'None', inline: true }
+  );
 };
 
 const createNotificationEmbed = (title, description) =>
@@ -69,7 +80,7 @@ const createRow = (custom_ids = ['status']) => {
   const buttons = {
     status: {
       customId: 'status',
-      label: 'Status',
+      label: 'Main Menu',
       style: ButtonStyle.Primary
     },
     duel: {
@@ -81,6 +92,11 @@ const createRow = (custom_ids = ['status']) => {
       customId: 'random_encounter',
       label: 'Random Encounter',
       style: ButtonStyle.Secondary
+    },
+    buying: {
+      customId: 'buying',
+      label: 'Buying',
+      style: ButtonStyle.Success
     },
     buy_weapon: {
       customId: 'buy_weapon',
@@ -109,7 +125,7 @@ const createRow = (custom_ids = ['status']) => {
     },
     shop: {
       customId: 'shop',
-      label: 'Shop',
+      label: 'Armory',
       style: ButtonStyle.Success
     },
     weapon_list: {
@@ -150,6 +166,7 @@ const createRow = (custom_ids = ['status']) => {
             .setCustomId(rowItem.customId)
             .setLabel(rowItem.label)
             .setStyle(rowItem.style)
+            .setEmoji('695955554199142421')
         );
       }
       return acc;
@@ -160,21 +177,13 @@ const createRow = (custom_ids = ['status']) => {
 const createExtraRows = (obj, key) => {
   if (!obj[key]) {
     if (key === 'shop') {
-      obj[key] = createRow([
-        'status',
-        'buy_weapon',
-        'sell_weapon',
-        'buy_armor',
-        'sell_armor'
-        // TODO: Problem is there can be 5 buttons at most in a row. Can I add another row?
-        // 'buy_potion'
-      ]);
-    } else if (key === 'shop_second') {
-      obj[key] = createRow(['buy_potion']);
+      obj[key] = createRow(['status', 'buying', 'sell_weapon', 'sell_armor']);
     } else if (key === 'buy_weapon') {
       obj[key] = createRow(['weapon_list']);
     } else if (key === 'buy_armor') {
       obj[key] = createRow(['armor_list']);
+    } else if (key === 'buying') {
+      obj[key] = createRow(['status', 'buy_potion', 'buy_weapon', 'buy_armor']);
     }
   }
 };
@@ -184,7 +193,7 @@ module.exports = {
     .setName('play')
     .setDescription('Play the game!'),
   async execute(interaction) {
-    // TODO: Check if user is registered (Use transaction or atomic operation)
+    await interaction.deferReply({ ephemeral: true });
     let user = await User.findOne({ discord_id: interaction.user.id });
     if (!user) {
       await interaction.reply({
@@ -197,7 +206,8 @@ module.exports = {
     let embed = createEmbed(user);
     const row = createRow(['status', 'duel', 'random_encounter', 'shop']);
     const extraRows = {};
-    const response = await interaction.reply({
+    createExtraRows(extraRows, 'shop');
+    const response = await interaction.editReply({
       embeds: [embed],
       components: [row],
       ephemeral: true
@@ -214,390 +224,410 @@ module.exports = {
     });
 
     selectMenuCollector.on('collect', async (i) => {
-      user = await User.findOne({ discord_id: i.user.id });
-      if (i.customId === 'weapon_list') {
-        const weapon = weapons[i.values[0]];
-        if (user.gold < weapon.cost) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed('Ooops!', 'You do not have enough gold.'),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-        } else {
-          user.gold -= weapon.cost;
-          user.weapon = weapon.name;
-          user.attack_power += weapon.attack_power;
-          await user.save();
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed('Hurray!', 'You have bought a weapon!'),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
+      const session = await mongoose.startSession();
+      try {
+        user = await User.findOne({ discord_id: i.user.id }).session(session);
+        if (i.customId === 'weapon_list') {
+          const weapon = weapons[i.values[0]];
+          if (user.gold < weapon.cost) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You do not have enough gold.'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          } else {
+            user.gold -= weapon.cost;
+            user.weapon = weapon.name;
+            user.attack_power += weapon.attack_power;
+            await user.save({ session });
+            await i.update({
+              embeds: [
+                createNotificationEmbed('Hurray!', 'You have bought a weapon!'),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'armor_list') {
+          const armor = armors[i.values[0]];
+          if (user.gold < armor.cost) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You do not have enough gold.'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          } else {
+            user.gold -= armor.cost;
+            user.armor = armor.name;
+            await user.save({ session });
+            await i.update({
+              embeds: [
+                createNotificationEmbed('Hurray!', 'You have bought an armor!'),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          }
         }
-      } else if (i.customId === 'armor_list') {
-        const armor = armors[i.values[0]];
-        if (user.gold < armor.cost) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed('Ooops!', 'You do not have enough gold.'),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-        } else {
-          user.gold -= armor.cost;
-          user.armor = armor.name;
-          await user.save();
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed('Hurray!', 'You have bought an armor!'),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-        }
+      } catch (error) {
+        await session.abortTransaction();
+        console.error('Transaction aborted:', error);
+      } finally {
+        session.endSession();
       }
     });
 
     collector.on('collect', async (i) => {
-      // TODO: Other users should not see other users' bot responses. Check this later.
-      if (i.user.id !== interaction.user.id) {
-        await i.reply({
-          content: 'You are not allowed to use this button!',
-          ephemeral: true
-        });
-        return;
-      }
-      user = await User.findOne({ discord_id: i.user.id });
-      // TODO: Add a status button to refresh the status of the user. Also, show if user is in duel queue.
-      if (i.customId === 'status') {
-        try {
-          embed = createEmbed(user);
-          await i.update({
-            embeds: [embed],
-            components: [row],
+      const session = await mongoose.startSession();
+      try {
+        session.startTransaction();
+        // TODO: Other users should not see other users' bot responses. Check this later.
+        if (i.user.id !== interaction.user.id) {
+          await i.reply({
+            content: 'You are not allowed to use this button!',
             ephemeral: true
           });
-        } catch (err) {
-          console.error(err);
-          embed = createEmbed(user);
-          await i.update({
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
-        }
-      } else if (i.customId === 'duel') {
-        // TODO: Send a message to the feed channel.
-        // TODO: Use transaction here to block user actions.
-        // TODO: Add defer in case of long running operations.
-        // await i.deferUpdate();
-        const isUserDueled = await Duel.findOne({ discord_id: i.user.id });
-        if (isUserDueled) {
-          embed = createEmbed(user);
-          await i.update({
-            content: 'You are already in duel queue!',
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
-          return;
-        }
-        if (user.energy_points <= 0) {
-          embed = createEmbed(user);
-          await i.update({
-            content: 'You do not have enough energy points!',
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
-          return;
-        }
-        // TODO: Use aggregation pipeline to reduce energy points.
-        user = await User.findOneAndUpdate(
-          { discord_id: i.user.id },
-          { energy_points: Math.max(user.energy_points - 1, 0) },
-          { new: true }
-        );
-        let otherDuelPlayer = await Duel.findOne({
-          discord_id: { $ne: i.user.id }
-        }).sort({ doc_created_at: 1 });
-        if (!otherDuelPlayer) {
-          embed = createEmbed(user);
-          await Duel.create({ discord_id: i.user.id });
-          await i.update({
-            content: 'You have been added to duel queue!',
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
-          return;
-        }
-        otherDuelPlayer = await User.findOne({
-          discord_id: otherDuelPlayer.discord_id
-        });
-        const playerDamage = parseFloat(
-          (Math.random() * user.attack_power).toFixed(2)
-        );
-        const otherPlayerDamage = parseFloat(
-          (Math.random() * otherDuelPlayer.attack_power).toFixed(2)
-        );
-        // TODO: Decrease health points.
-        const isTie = playerDamage === otherPlayerDamage;
-        if (isTie) {
-          await Duel.deleteMany({
-            discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
-          });
-          await i.update({
-            content: 'It is a tie!',
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
-          return;
-        }
-        const winner =
-          playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
-        const loser = playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
-        loser.health_points = Math.round(
-          Math.max(
-            loser.health_points -
-              Math.abs(playerDamage - otherPlayerDamage) *
-                (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)),
-            0
-          )
-        );
-        await loser.save();
-        const isLoserDead = loser.health_points === 0;
-        const guild = await client.guilds.cache.get(guildId);
-        const winnerName = guild
-          ? await guild.members.cache.get(winner.discord_id)?.displayName
-          : await guild?.members?.fetch(winner.discord_id)?.displayName;
-        const loserName = guild
-          ? await guild.members.cache.get(loser.discord_id)?.displayName
-          : await guild?.members?.fetch(loser.discord_id)?.displayName;
-        if (isLoserDead) {
-          const earnedGold = Math.floor(
-            loser.gold +
-              (loser.armor ? armors[loser.armor].cost : 0) +
-              (loser.weapon ? weapons[loser.weapon].cost : 0)
+          await session.abortTransaction();
+          console.error(
+            'Transaction aborted: User is not allowed to use this button!'
           );
-          winner.gold += earnedGold;
-          await winner.save();
-          await Duel.deleteMany({
-            discord_id: { $in: [winner.discord_id, loser.discord_id] }
-          });
-          // TODO: Use usernames instead of discord ids.
-          // TODO: Use gold instead of golds when it is 1.
-          await i.update({
-            content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has died!`,
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
-        } else {
-          const earnedGold = Math.floor(loser.gold / 2);
-          winner.gold += earnedGold;
-          loser.gold -= earnedGold;
-          await Promise.all([winner.save(), loser.save()]);
-          await Duel.deleteMany({
-            discord_id: { $in: [winner.discord_id, loser.discord_id] }
-          });
-          await i.update({
-            content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has lost the duel and lost ${earnedGold} golds!`,
-            embeds: [embed],
-            components: [row],
-            ephemeral: true
-          });
+          return;
         }
-      } else if (i.customId === 'random_encounter') {
-        await i.reply('You have selected random encounter!');
-      } else if (i.customId === 'shop') {
-        try {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
+        user = await User.findOne({ discord_id: i.user.id }).session(session);
+        // TODO: Add a status button to refresh the status of the user. Also, show if user is in duel queue.
+        if (i.customId === 'status') {
+          try {
+            embed = createEmbed(user);
+            await i.update({
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+          } catch (err) {
+            console.error(err);
+            embed = createEmbed(user);
+            await i.update({
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'duel') {
+          // TODO: Send a message to the feed channel.
+          // TODO: Add defer in case of long running operations.
+          // await i.deferUpdate();
+          const isUserDueled = await Duel.findOne({
+            discord_id: i.user.id
+          }).session(session);
+          if (isUserDueled) {
+            embed = createEmbed(user);
+            await i.update({
+              content: 'You are already in duel queue!',
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          if (user.energy_points <= 0) {
+            embed = createEmbed(user);
+            await i.update({
+              content: 'You do not have enough energy points!',
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          user = await User.findOneAndUpdate(
+            { discord_id: i.user.id },
+            { energy_points: Math.max(user.energy_points - 1, 0) },
+            { new: true }
+          ).session(session);
+          let otherDuelPlayer = await Duel.findOne({
+            discord_id: { $ne: i.user.id }
+          })
+            .sort({ doc_created_at: 1 })
+            .session(session);
+          if (!otherDuelPlayer) {
+            embed = createEmbed(user);
+            await Duel.create({ discord_id: i.user.id });
+            await i.update({
+              content: 'You have been added to duel queue!',
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          otherDuelPlayer = await User.findOne({
+            discord_id: otherDuelPlayer.discord_id
+          }).session(session);
+          const playerDamage = parseFloat(
+            (Math.random() * user.attack_power).toFixed(2)
+          );
+          const otherPlayerDamage = parseFloat(
+            (Math.random() * otherDuelPlayer.attack_power).toFixed(2)
+          );
+          const isTie = playerDamage === otherPlayerDamage;
+          if (isTie) {
+            await Duel.deleteMany({
+              discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
+            }).session(session);
+            await i.update({
+              content: 'It is a tie!',
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          const winner =
+            playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
+          const loser =
+            playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
+          loser.health_points = Math.round(
+            Math.max(
+              loser.health_points -
+                BASE_DAMAGE -
+                Math.abs(playerDamage - otherPlayerDamage) *
+                  (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)),
+              0
+            )
+          );
+          await loser.save({ session });
+          const isLoserDead = loser.health_points === 0;
+          const guild =
+            (await client.guilds.cache.get(guildId)) ||
+            (await client.guilds.fetch(guildId));
+          const winnerName =
+            (await guild.members.cache.get(winner.discord_id)?.displayName) ||
+            (await guild?.members?.fetch(winner.discord_id)?.displayName);
+          const loserName =
+            (await guild.members.cache.get(loser.discord_id)?.displayName) ||
+            (await guild?.members?.fetch(loser.discord_id)?.displayName);
+          if (isLoserDead) {
+            const earnedGold = Math.floor(
+              loser.gold +
+                (loser.armor ? armors[loser.armor].cost : 0) +
+                (loser.weapon ? weapons[loser.weapon].cost : 0)
+            );
+            winner.gold += earnedGold;
+            const resp = await winner.save({ session });
+            await Duel.deleteMany({
+              discord_id: { $in: [winner.discord_id, loser.discord_id] }
+            }).session(session);
+            console.log(resp);
+            // TODO: Use usernames instead of discord ids.
+            // TODO: Use gold instead of golds when it is 1.
+            await i.update({
+              content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has died!`,
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+          } else {
+            const earnedGold = Math.floor(loser.gold / 2);
+            winner.gold += earnedGold;
+            loser.gold -= earnedGold;
+            await Promise.all([
+              winner.save({ session }),
+              loser.save({ session })
+            ]);
+            await Duel.deleteMany({
+              discord_id: { $in: [winner.discord_id, loser.discord_id] }
+            }).session(session);
+            await i.update({
+              content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has lost the duel and lost ${earnedGold} golds!`,
+              embeds: [embed],
+              components: [row],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'random_encounter') {
+          await i.reply('You have selected random encounter!');
+        } else if (i.customId === 'shop') {
+          try {
+            await i.update({
+              embeds: [createShopEmbed(user)],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          } catch (err) {
+            console.error(err);
+            await i.update({
+              content: 'There has been an error!',
+              embeds: [createShopEmbed(user)],
+              components: [row],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'buy_potion') {
+          if (user.gold < user.health_potion_cost) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You do not have enough gold to buy a health potion!'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          } else {
+            user.gold -= user.health_potion_cost;
+            user.health_points = Math.min(user.health_points + 33, 100);
+            user.health_potion_cost *= 2;
+            await user.save({ session });
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Success!',
+                  'You have bought and used a health potion!'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'buying') {
+          createExtraRows(extraRows, 'buying');
           await i.update({
             embeds: [createShopEmbed(user)],
-            components: [extraRows.shop, extraRows.shop_second],
+            components: [extraRows.buying],
             ephemeral: true
           });
-        } catch (err) {
-          console.error(err);
-          await i.update({
-            content: 'There has been an error!',
-            embeds: [createShopEmbed(user)],
-            components: [row],
-            ephemeral: true
-          });
-        }
-      } else if (i.customId === 'buy_potion') {
-        if (user.gold < user.health_potion_cost) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed(
-                'Ooops!',
-                'You do not have enough gold to buy a health potion!'
-              ),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-        } else {
-          user.gold -= user.health_potion_cost;
-          user.health_points = Math.min(user.health_points + 33, 100);
-          user.health_potion_cost *= 2;
-          await user.save();
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
+        } else if (i.customId === 'buy_weapon') {
+          if (user.weapon) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You already have a weapon. Sell it first to buy another one!'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          } else {
+            createExtraRows(extraRows, 'buy_weapon');
+            await i.update({
+              embeds: [createShopEmbed(user)],
+              components: [extraRows.buy_weapon],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'sell_weapon') {
+          if (!user.weapon) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You do not have a weapon to sell!'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+            return;
+          }
+          const weapon = Object.values(weapons).find(
+            (w) => w.name === user.weapon
+          );
+          user.gold += Math.floor(weapon.cost / 2);
+          user.weapon = null;
+          user.attack_power -= weapon.attack_power;
+          await user.save({ session });
           await i.update({
             embeds: [
               createNotificationEmbed(
                 'Success!',
-                'You have bought and used a health potion!'
+                'You have sold your weapon for half of its price!'
               ),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop, extraRows.shop_second],
+            components: [extraRows.shop],
             ephemeral: true
           });
-        }
-      } else if (i.customId === 'buy_weapon') {
-        if (user.weapon) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
+        } else if (i.customId === 'buy_armor') {
+          if (user.armor) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You already have an armor. Sell it first to buy another one!'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+          } else {
+            createExtraRows(extraRows, 'buy_armor');
+            await i.update({
+              embeds: [createShopEmbed(user)],
+              components: [extraRows.buy_armor],
+              ephemeral: true
+            });
+          }
+        } else if (i.customId === 'sell_armor') {
+          console.log('sell armor');
+          if (!user.armor) {
+            await i.update({
+              embeds: [
+                createNotificationEmbed(
+                  'Ooops!',
+                  'You do not have an armor to sell!'
+                ),
+                createShopEmbed(user)
+              ],
+              components: [extraRows.shop],
+              ephemeral: true
+            });
+            return;
+          }
+          const armor = Object.values(armors).find(
+            (a) => a.name === user.armor
+          );
+          user.gold += Math.floor(armor.cost / 2);
+          user.armor = null;
+          await user.save({ session });
           await i.update({
             embeds: [
               createNotificationEmbed(
-                'Ooops!',
-                'You already have a weapon. Sell it first to buy another one!'
+                'Success!',
+                'You have sold your armor for half of its price!'
               ),
               createShopEmbed(user)
             ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-        } else {
-          createExtraRows(extraRows, 'buy_weapon');
-          await i.update({
-            embeds: [createShopEmbed(user)],
-            components: [extraRows.buy_weapon],
+            components: [extraRows.shop],
             ephemeral: true
           });
         }
-      } else if (i.customId === 'sell_weapon') {
-        if (!user.weapon) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed(
-                'Ooops!',
-                'You do not have a weapon to sell!'
-              ),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-          return;
-        }
-        createExtraRows(extraRows, 'shop');
-        createExtraRows(extraRows, 'shop_second');
-        const weapon = Object.values(weapons).find(
-          (w) => w.name === user.weapon
-        );
-        user.gold += Math.floor(weapon.cost / 2);
-        user.weapon = null;
-        user.attack_power -= weapon.attack_power;
-        await user.save();
-        await i.update({
-          embeds: [
-            createNotificationEmbed(
-              'Success!',
-              'You have sold your weapon for half of its price!'
-            ),
-            createShopEmbed(user)
-          ],
-          components: [extraRows.shop, extraRows.shop_second],
-          ephemeral: true
-        });
-      } else if (i.customId === 'buy_armor') {
-        if (user.armor) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed(
-                'Ooops!',
-                'You already have an armor. Sell it first to buy another one!'
-              ),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-        } else {
-          createExtraRows(extraRows, 'buy_armor');
-          await i.update({
-            embeds: [createShopEmbed(user)],
-            components: [extraRows.buy_armor],
-            ephemeral: true
-          });
-        }
-      } else if (i.customId === 'sell_armor') {
-        console.log('sell armor');
-        if (!user.armor) {
-          createExtraRows(extraRows, 'shop');
-          createExtraRows(extraRows, 'shop_second');
-          await i.update({
-            embeds: [
-              createNotificationEmbed(
-                'Ooops!',
-                'You do not have an armor to sell!'
-              ),
-              createShopEmbed(user)
-            ],
-            components: [extraRows.shop, extraRows.shop_second],
-            ephemeral: true
-          });
-          return;
-        }
-        createExtraRows(extraRows, 'shop');
-        createExtraRows(extraRows, 'shop_second');
-        const armor = Object.values(armors).find((a) => a.name === user.armor);
-        user.gold += Math.floor(armor.cost / 2);
-        user.armor = null;
-        await user.save();
-        await i.update({
-          embeds: [
-            createNotificationEmbed(
-              'Success!',
-              'You have sold your armor for half of its price!'
-            ),
-            createShopEmbed(user)
-          ],
-          components: [extraRows.shop, extraRows.shop_second],
-          ephemeral: true
-        });
+        await session.commitTransaction();
+      } catch (error) {
+        await session.abortTransaction();
+        console.error('Transaction aborted:', error);
+      } finally {
+        session.endSession();
       }
     });
     // client.channels.cache.get('1125716788370485308').send('This is a message for private DMs.');
