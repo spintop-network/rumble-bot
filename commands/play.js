@@ -7,12 +7,11 @@ const {
   StringSelectMenuBuilder,
   ActionRowBuilder,
   ComponentType,
-  bold
+  bold,
+  userMention
 } = require('discord.js');
 const mongoose = require('mongoose');
 
-const { client } = require('../client.js');
-const { guildId } = require('../config.json');
 const User = require('../models/user.js');
 const Duel = require('../models/duel.js');
 const { weapons, armors, BASE_DAMAGE } = require('../constants.js');
@@ -328,16 +327,19 @@ module.exports = {
           }
         } else if (i.customId === 'duel') {
           // TODO: Send a message to the feed channel.
-          // TODO: Add defer in case of long running operations.
-          // await i.deferUpdate();
           const isUserDueled = await Duel.findOne({
             discord_id: i.user.id
           }).session(session);
           if (isUserDueled) {
             embed = createEmbed(user);
             await i.update({
-              content: 'You are already in duel queue!',
-              embeds: [embed],
+              embeds: [
+                createNotificationEmbed(
+                  'Hurray!',
+                  'You are already in duel queue!'
+                ),
+                embed
+              ],
               components: [row],
               ephemeral: true
             });
@@ -346,8 +348,13 @@ module.exports = {
           if (user.energy_points <= 0) {
             embed = createEmbed(user);
             await i.update({
-              content: 'You do not have enough energy points!',
-              embeds: [embed],
+              embeds: [
+                createNotificationEmbed(
+                  'Oops!',
+                  'You do not have enough energy points!'
+                ),
+                embed
+              ],
               components: [row],
               ephemeral: true
             });
@@ -367,8 +374,13 @@ module.exports = {
             embed = createEmbed(user);
             await Duel.create({ discord_id: i.user.id });
             await i.update({
-              content: 'You have been added to duel queue!',
-              embeds: [embed],
+              embeds: [
+                createNotificationEmbed(
+                  'Hurray!',
+                  'You have been added to duel queue!'
+                ),
+                embed
+              ],
               components: [row],
               ephemeral: true
             });
@@ -389,8 +401,10 @@ module.exports = {
               discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
             }).session(session);
             await i.update({
-              content: 'It is a tie!',
-              embeds: [embed],
+              embeds: [
+                createNotificationEmbed('Ooops!', 'It is a tie!'),
+                embed
+              ],
               components: [row],
               ephemeral: true
             });
@@ -411,15 +425,6 @@ module.exports = {
           );
           await loser.save({ session });
           const isLoserDead = loser.health_points === 0;
-          const guild =
-            (await client.guilds.cache.get(guildId)) ||
-            (await client.guilds.fetch(guildId));
-          const winnerName =
-            (await guild.members.cache.get(winner.discord_id)?.displayName) ||
-            (await guild?.members?.fetch(winner.discord_id)?.displayName);
-          const loserName =
-            (await guild.members.cache.get(loser.discord_id)?.displayName) ||
-            (await guild?.members?.fetch(loser.discord_id)?.displayName);
           if (isLoserDead) {
             const earnedGold = Math.floor(
               loser.gold +
@@ -427,15 +432,17 @@ module.exports = {
                 (loser.weapon ? weapons[loser.weapon].cost : 0)
             );
             winner.gold += earnedGold;
-            const resp = await winner.save({ session });
             await Duel.deleteMany({
               discord_id: { $in: [winner.discord_id, loser.discord_id] }
             }).session(session);
-            console.log(resp);
             // TODO: Use usernames instead of discord ids.
             // TODO: Use gold instead of golds when it is 1.
             await i.update({
-              content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has died!`,
+              content: `${userMention(
+                winner.discord_id
+              )} has won the duel and gained ${earnedGold} golds! ${userMention(
+                loser.discord_id
+              )} has died!`,
               embeds: [embed],
               components: [row],
               ephemeral: true
@@ -452,7 +459,11 @@ module.exports = {
               discord_id: { $in: [winner.discord_id, loser.discord_id] }
             }).session(session);
             await i.update({
-              content: `${winnerName} has won the duel and gained ${earnedGold} golds! ${loserName} has lost the duel and lost ${earnedGold} golds!`,
+              content: `${userMention(
+                winner.discord_id
+              )} has won the duel and gained ${earnedGold} golds! ${userMention(
+                loser.discord_id
+              )} has lost the duel and lost ${earnedGold} golds!`,
               embeds: [embed],
               components: [row],
               ephemeral: true
@@ -589,7 +600,6 @@ module.exports = {
             });
           }
         } else if (i.customId === 'sell_armor') {
-          console.log('sell armor');
           if (!user.armor) {
             await i.update({
               embeds: [
