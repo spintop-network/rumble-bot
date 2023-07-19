@@ -79,7 +79,6 @@ jspm_packages/
 
 # dotenv environment variables file
 .env
-config.json
 
 # next.js build output
 .next
@@ -90,3 +89,4 @@ lerna-debug.log
 # System Files
 .DS_Store
 Thumbs.db
+/config.json
