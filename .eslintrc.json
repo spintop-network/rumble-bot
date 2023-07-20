@@ -8,6 +8,9 @@
   "parserOptions": {
     "ecmaVersion": 2021
   },
+  "globals": {
+    "context": "readonly"
+  },
   "rules": {
     "prettier/prettier": "error",
     "arrow-spacing": [
