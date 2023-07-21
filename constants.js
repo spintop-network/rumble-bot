@@ -66,7 +66,45 @@ const armors = {
     name: 'Ballistic Shield',
     description: 'Ballistic Shield',
     dmg_migration: 0.1,
-    cost: 50
+    cost: 50,
+    // prettier-ignore
+    armor_duel_texts: [
+      {
+        name: 'Very Low',
+        text: [
+          '@kaybeden\'s BALLISTIC SHIELD was very effective. @kazanan only managed to leave a faint scratch on @kaybeden\'s BALLISTIC SHIELD with his attack.',
+          '@kaybeden\'s BALLISTIC SHIELD was very effective. @kazanan\'s attack felt like a small rock impacting the surface of @kaybeden\'s BALLISTIC SHIELD.'
+        ]
+      },
+      {
+        name: 'Low',
+        text: [
+          '@kaybeden\'s BALLISTIC SHIELD was effective. @kazanan\'s attack caused cracks along the edge of @kaybeden\'s BALLISTIC SHIELD.',
+          '@kaybeden\'s BALLISTIC SHIELD was effective. @kazanan hit the center of @kaybeden\'s BALLISTIC SHIELD and managed to bend the shield a little bit.'
+        ]
+      },
+      {
+        name: 'Normal',
+        text: [
+          '@kaybeden’s BALLISTIC SHIELD was barely effective. @kazanan\'s attack was powerful enough to make a hole on @kaybeden\'s BALLISTIC SHIELD.',
+          '@kaybeden’s BALLISTIC SHIELD was barely effective. @kazanan\'s attack managed to shatter the glass of @kaybeden\'s BALLISTIC SHIELD\'s viewport entirely.'
+        ]
+      },
+      {
+        name: 'Critical',
+        text: [
+          '@kaybeden’s BALLISTIC SHIELD was ineffective. @kazanan\'s attack surpassed the BALLISTIC SHIELD\'s damage absorption power. @kaybeden felt the whole impact on his body, from head to toe.',
+          '@kaybeden’s BALLISTIC SHIELD was ineffective. @kazanan\'s attack managed to chop off half of @kaybeden\'s BALLISTIC SHIELD and caused tremendous damage.'
+        ]
+      },
+      {
+        name: 'Fatal',
+        text: [
+          '@kaybeden’s BALLISTIC SHIELD was impotent. @kazanan\'s attack was so powerful that @kaybeden\'s BALLISTIC SHIELD felt like a shield made of paper. @kaybeden is barely standing up after suffering from this fatal attack.',
+          '@kaybeden’s BALLISTIC SHIELD was impotent. @kazanan\'s attack force made @kaybeden lose his grip and send BALLISTIC SHIELD to 10 meters high above the ground! @kaybeden is severely wounded, barely managing to continue.'
+        ]
+      },
+    ]
   },
   TITANIUM_PLATING: {
     name: 'Titanium Plating',
