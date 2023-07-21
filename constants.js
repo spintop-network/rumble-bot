@@ -94,6 +94,58 @@ const armors = {
   }
 };
 
+const duel_bounds = [
+  { name: 'Very Low', lower_bound: 0, upper_bound: 10 },
+  { name: 'Low', lower_bound: 10, upper_bound: 20 },
+  { name: 'Normal', lower_bound: 20, upper_bound: 35 },
+  { name: 'Critical', lower_bound: 35, upper_bound: 50 },
+  { name: 'Fatal', lower_bound: 50, upper_bound: 100 }
+];
+
+const duel_texts = [
+  {
+    name: 'Very Low',
+    getting_damage:
+      '@kaybeden has a new scratch mark on his Cobot after @kazanan’s attack.',
+    damaging:
+      '@kazanan has made an attack but, apparently, forgot to add power to it. @kaybeden has only been shaken.'
+  },
+  {
+    name: 'Low',
+    getting_damage:
+      '@kaybeden has taken an average amount of damage from @kazanan’s attack.',
+    damaging:
+      '@kazanan’s attack has connected, but @kaybeden is still standing strong.s'
+  },
+  {
+    name: 'Normal',
+    getting_damage: '@kaybeden has been slightly injured by @kazanan.',
+    damaging:
+      '@kazanan’s attack was powerful enough to injure @kaybeden slightly.'
+  },
+  {
+    name: 'Critical',
+    getting_damage:
+      '@kaybeden has taken a critical hit from @kazanan’s attack. Ouch.',
+    damaging:
+      '@kazanan’s attack was devastating! @kaybeden took a critical hit.'
+  },
+  {
+    name: 'Fatal',
+    getting_damage: '@kaybeden has taken a fatal hit from @kazanan. Uh oh.',
+    damaging:
+      '@kazanan nearly managed to malfunction @kaybeden’s Cobot with a fatal attack!'
+  },
+  {
+    name: 'Elimination',
+    getting_damage:
+      '@kaybeden’s Cobot gives hundreds of system malfunction warnings. It can’t even stand still, shaking from its legs to the head. It looks like it is the end of the road. ELIMINATED',
+    damaging:
+      // prettier-ignore
+      '@kazanan’s attack was so powerful and devastating that the entire Cobot\'s Steam Arena (sponsored by BITS Artificial Services) has felt the impact! His opponent is finished. ELIMINATED'
+  }
+];
+
 const BASE_DAMAGE = 5;
 
 const rooms = {
@@ -104,4 +156,12 @@ const rooms = {
 
 const pilotRoleId = '1131877359662923817';
 
-module.exports = { weapons, armors, BASE_DAMAGE, rooms, pilotRoleId };
+module.exports = {
+  weapons,
+  armors,
+  BASE_DAMAGE,
+  rooms,
+  pilotRoleId,
+  duel_texts,
+  duel_bounds
+};

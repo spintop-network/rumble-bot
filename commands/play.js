@@ -15,6 +15,8 @@ const mongoose = require('mongoose');
 const User = require('../models/user.js');
 const Duel = require('../models/duel.js');
 const { weapons, armors, BASE_DAMAGE } = require('../constants.js');
+const { rooms, duel_bounds, duel_texts } = require('../constants');
+const { client } = require('../client');
 
 const createEmbed = (user) => {
   return new EmbedBuilder().setTitle('Welcome to the game!').addFields(
@@ -187,6 +189,9 @@ const createExtraRows = (obj, key) => {
   }
 };
 
+const getChannel = async (channel_id) =>
+  (await client.channels.cache.get(channel_id)) ||
+  (await client.channels.fetch(channel_id));
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
@@ -235,6 +240,16 @@ module.exports = {
         try {
           session.startTransaction();
           user = await User.findOne({ discord_id: i.user.id }).session(session);
+          if (user.health_points <= 0) {
+            await i.update({
+              content: 'You have died. You cannot play anymore.',
+              embeds: [],
+              components: [],
+              ephemeral: true
+            });
+            await session.abortTransaction();
+            return;
+          }
           if (i.customId === 'weapon_list') {
             const weapon = weapons[i.values[0]];
             if (user.gold < weapon.cost) {
@@ -322,6 +337,16 @@ module.exports = {
             return;
           }
           user = await User.findOne({ discord_id: i.user.id }).session(session);
+          if (user.health_points <= 0) {
+            await i.update({
+              content: 'You have died. You cannot play anymore.',
+              embeds: [],
+              components: [],
+              ephemeral: true
+            });
+            await session.abortTransaction();
+            return;
+          }
           // TODO: Add a status button to refresh the status of the user. Also, show if user is in duel queue.
           if (i.customId === 'status') {
             try {
@@ -341,13 +366,13 @@ module.exports = {
               });
             }
           } else if (i.customId === 'duel') {
-            // TODO: Send a message to the feed channel.
             const isUserDueled = await Duel.findOne({
               discord_id: i.user.id
             }).session(session);
             if (isUserDueled) {
               embed = createEmbed(user);
               await i.update({
+                content: '',
                 embeds: [
                   createNotificationEmbed(
                     'Hurray!',
@@ -358,6 +383,7 @@ module.exports = {
                 components: [row],
                 ephemeral: true
               });
+
               return;
             }
             if (user.energy_points <= 0) {
@@ -389,6 +415,7 @@ module.exports = {
               embed = createEmbed(user);
               await Duel.create({ discord_id: i.user.id });
               await i.update({
+                content: '',
                 embeds: [
                   createNotificationEmbed(
                     'Hurray!',
@@ -399,16 +426,19 @@ module.exports = {
                 components: [row],
                 ephemeral: true
               });
+              await session.commitTransaction();
               return;
             }
             otherDuelPlayer = await User.findOne({
               discord_id: otherDuelPlayer.discord_id
             }).session(session);
+            const playerRoll = Math.random();
+            const otherPlayerRoll = Math.random();
             const playerDamage = parseFloat(
-              (Math.random() * user.attack_power).toFixed(2)
+              (playerRoll * user.attack_power).toFixed(2)
             );
             const otherPlayerDamage = parseFloat(
-              (Math.random() * otherDuelPlayer.attack_power).toFixed(2)
+              (otherPlayerRoll * otherDuelPlayer.attack_power).toFixed(2)
             );
             const isTie = playerDamage === otherPlayerDamage;
             if (isTie) {
@@ -429,18 +459,28 @@ module.exports = {
               playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
             const loser =
               playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
-            loser.health_points = Math.round(
-              Math.max(
-                loser.health_points -
-                  BASE_DAMAGE -
-                  Math.abs(playerDamage - otherPlayerDamage) *
-                    (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)),
-                0
-              )
-            );
+            const damageFloat =
+              BASE_DAMAGE +
+              Math.abs(playerDamage - otherPlayerDamage) *
+                (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)) *
+                10;
+            loser.health_points = Math.round(loser.health_points - damageFloat);
             await loser.save({ session });
-            const isLoserDead = loser.health_points === 0;
+            const isLoserDead = loser.health_points <= 0;
+            const perspective = ['getting_damage', 'damaging'][
+              Math.floor(Math.random() * 2)
+            ];
+
+            const bound = duel_bounds.find(
+              (b) => damageFloat >= b.lower_bound && damageFloat < b.upper_bound
+            );
             if (isLoserDead) {
+              const duel_text = Object.entries(
+                duel_texts.find((d) => d.name === 'Elimination')
+              )
+                .find(([key]) => key === perspective)[1]
+                .replace('@kazanan', userMention(winner.discord_id))
+                .replace('@kaybeden', userMention(loser.discord_id));
               const earnedGold = Math.floor(
                 loser.gold +
                   (loser.armor ? armors[loser.armor].cost : 0) +
@@ -450,19 +490,23 @@ module.exports = {
               await Duel.deleteMany({
                 discord_id: { $in: [winner.discord_id, loser.discord_id] }
               }).session(session);
-              // TODO: Use usernames instead of discord ids.
-              // TODO: Use gold instead of golds when it is 1.
               await i.update({
-                content: `${userMention(
-                  winner.discord_id
-                )} has won the duel and gained ${earnedGold} golds! ${userMention(
-                  loser.discord_id
-                )} has died!`,
+                content: duel_text,
                 embeds: [embed],
                 components: [row],
                 ephemeral: true
               });
+              const channel = await getChannel(rooms.feed);
+              if (channel) {
+                await channel.send(duel_text);
+              }
             } else {
+              const duel_text = Object.entries(
+                duel_texts.find((d) => d.name === bound.name)
+              )
+                .find(([key]) => key === perspective)[1]
+                .replace('@kazanan', userMention(winner.discord_id))
+                .replace('@kaybeden', userMention(loser.discord_id));
               const earnedGold = Math.floor(loser.gold / 2);
               winner.gold += earnedGold;
               loser.gold -= earnedGold;
@@ -474,15 +518,15 @@ module.exports = {
                 discord_id: { $in: [winner.discord_id, loser.discord_id] }
               }).session(session);
               await i.update({
-                content: `${userMention(
-                  winner.discord_id
-                )} has won the duel and gained ${earnedGold} golds! ${userMention(
-                  loser.discord_id
-                )} has lost the duel and lost ${earnedGold} golds!`,
+                content: duel_text,
                 embeds: [embed],
                 components: [row],
                 ephemeral: true
               });
+              const channel = await getChannel(rooms.feed);
+              if (channel) {
+                await channel.send(duel_text);
+              }
             }
           } else if (i.customId === 'random_encounter') {
             await i.reply('You have selected random encounter!');

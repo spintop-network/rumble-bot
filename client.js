@@ -39,7 +39,7 @@ client.once(Events.ClientReady, async (c) => {
     if (channel) {
       const messages = await channel.messages.fetch({ limit: 100 });
       if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
-        channel.send({ embeds: [registerEmbed], components: [row] });
+        await channel.send({ embeds: [registerEmbed], components: [row] });
       }
     }
   } catch (error) {
