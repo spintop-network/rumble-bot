@@ -6,14 +6,17 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ActionRowBuilder
+  ActionRowBuilder,
+  EmbedBuilder,
+  userMention
 } = require('discord.js');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { client } = require('./client.js');
 const User = require('./models/user');
+const Notification = require('./models/notification');
 const { ethers } = require('ethers');
-const { pilotRoleId } = require('./constants');
+const { pilotRoleId, rooms } = require('./constants');
 
 dotenv.config();
 mongoose.connect(process.env.MONGODB_URI);
@@ -119,7 +122,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             'You have been registered! You can use /play command to play the game after it started.',
           ephemeral: true
         });
-        // client.channels.cache.get('1125716788370485308').send('This is a message for private DMs.');
       } catch (error) {
         console.error(error);
         await session.abortTransaction();
@@ -157,3 +159,65 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+
+setInterval(async () => {
+  if (mongoose.connection.readyState !== 1) return;
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    const sudden_deaths = await Notification.find({ type: 'sudden_death' })
+      .limit(20)
+      .lean();
+
+    const inactivity_deaths = await Notification.find({
+      type: 'inactivity_death'
+    })
+      .limit(20)
+      .lean();
+
+    try {
+      const channel =
+        (await client.channels.cache.get(rooms.feed)) ||
+        (await client.channels.fetch(rooms.feed));
+      if (channel) {
+        if (sudden_deaths.length) {
+          const suddenDeathEmbed = new EmbedBuilder()
+            .setTitle('Sudden Deaths')
+            .setDescription(
+              `Some players have suddenly died!\n\n${sudden_deaths.map(
+                (i) => `${userMention(i.discord_id)}\n`
+              )}`
+            );
+          await channel.send({ embeds: [suddenDeathEmbed] });
+        }
+        if (inactivity_deaths.length) {
+          const inactivityDeathEmbed = new EmbedBuilder()
+            .setTitle('Inactivity Deaths')
+            .setDescription(
+              `Some players have died because of inactivity!\n\n${inactivity_deaths.map(
+                (i) => `${userMention(i.discord_id)}\n`
+              )}`
+            );
+          await channel.send({ embeds: [inactivityDeathEmbed] });
+        }
+        if (sudden_deaths.length || inactivity_deaths.length) {
+          await Notification.deleteMany({
+            discord_id: {
+              $in: [
+                ...sudden_deaths.map((i) => i.discord_id),
+                ...inactivity_deaths.map((i) => i.discord_id)
+              ]
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Transaction aborted:', error);
+  } finally {
+    await session.endSession();
+  }
+}, 10000);

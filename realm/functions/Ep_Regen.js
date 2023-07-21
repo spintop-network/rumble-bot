@@ -1,4 +1,7 @@
 exports = async () => {
+  // TODO: Change this to environment variable.
+  const isGameStarted = false;
+  if (!isGameStarted) return false;
   const serviceName = 'mongodb-atlas';
   const dbName = 'spinroyale';
   const client = context.services.get(serviceName);

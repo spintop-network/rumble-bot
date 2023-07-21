@@ -196,9 +196,16 @@ module.exports = {
       await interaction.deferReply({ ephemeral: true });
       let user = await User.findOne({ discord_id: interaction.user.id });
       if (!user) {
-        await interaction.reply({
+        await interaction.editReply({
           content:
             'You are not registered! Please use /register command to register.',
+          ephemeral: true
+        });
+        return;
+      }
+      if (user.health_points <= 0) {
+        await interaction.editReply({
+          content: 'You have died. You cannot play anymore.',
           ephemeral: true
         });
         return;
@@ -651,6 +658,5 @@ module.exports = {
     } catch (err) {
       console.error(err);
     }
-    // client.channels.cache.get('1125716788370485308').send('This is a message for private DMs.');
   }
 };
