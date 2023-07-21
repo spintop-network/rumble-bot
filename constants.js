@@ -96,4 +96,12 @@ const armors = {
 
 const BASE_DAMAGE = 5;
 
-module.exports = { weapons, armors, BASE_DAMAGE };
+const rooms = {
+  register: '1131127969734213652',
+  feed: '1131127888054329384',
+  game: '1131127996674216006'
+};
+
+const pilotRoleId = '1131877359662923817';
+
+module.exports = { weapons, armors, BASE_DAMAGE, rooms, pilotRoleId };

@@ -226,6 +226,7 @@ module.exports = {
       selectMenuCollector.on('collect', async (i) => {
         const session = await mongoose.startSession();
         try {
+          session.startTransaction();
           user = await User.findOne({ discord_id: i.user.id }).session(session);
           if (i.customId === 'weapon_list') {
             const weapon = weapons[i.values[0]];
@@ -293,7 +294,7 @@ module.exports = {
           await session.abortTransaction();
           console.error('Transaction aborted:', error);
         } finally {
-          session.endSession();
+          await session.endSession();
         }
       });
 
@@ -644,7 +645,7 @@ module.exports = {
           await session.abortTransaction();
           console.error('Transaction aborted:', error);
         } finally {
-          session.endSession();
+          await session.endSession();
         }
       });
     } catch (err) {
