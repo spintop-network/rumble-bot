@@ -1,3 +1,6 @@
+const dotenv = require('dotenv');
+dotenv.config();
+
 const weapons = {
   PLATINUM_PAN: {
     name: 'Platinum Pan',
@@ -186,11 +189,17 @@ const duel_texts = [
 
 const BASE_DAMAGE = 5;
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const rooms = {
-  register: '1131127969734213652',
-  feed: '1131127888054329384',
-  game: '1131127996674216006',
-  pilots_handbook: '1131860456097714218'
+  register: isProduction
+    ? '1131127969734213652'
+    : process.env.REGISTER_CHANNEL_ID,
+  feed: isProduction ? '1131127888054329384' : process.env.FEED_CHANNEL_ID,
+  game: isProduction ? '1131127996674216006' : process.env.GAME_CHANNEL_ID,
+  pilots_handbook: isProduction
+    ? '1131860456097714218'
+    : process.env.PILOTS_HANDBOOK_CHANNEL_ID
 };
 
 const pilotRoleId = '1131877359662923817';
