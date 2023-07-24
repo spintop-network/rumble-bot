@@ -215,6 +215,15 @@ module.exports = {
         });
         return;
       }
+      // TODO: Get this from a global state.
+      const isGameStarted = false;
+      if (!isGameStarted) {
+        await interaction.editReply({
+          content: 'The game has not started yet!',
+          ephemeral: true
+        });
+        return;
+      }
       let embed = createEmbed(user);
       const row = createRow(['status', 'duel', 'random_encounter', 'shop']);
       const extraRows = {};

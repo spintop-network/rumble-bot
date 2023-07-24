@@ -189,7 +189,8 @@ const BASE_DAMAGE = 5;
 const rooms = {
   register: '1131127969734213652',
   feed: '1131127888054329384',
-  game: '1131127996674216006'
+  game: '1131127996674216006',
+  pilots_handbook: '1131860456097714218'
 };
 
 const pilotRoleId = '1131877359662923817';

@@ -119,7 +119,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await newUser.save();
         await interaction.reply({
           content:
-            'You have been registered! You can use /play command to play the game after it started.',
+            // prettier-ignore
+            'Congratulations, pilot; you have been registered successfully! To learn everything about Spintop\'s Cobot Rumble, check out the Pilot\'s Handbook:\n' +
+            'https://discord.com/channels/893489228502167615/1131860456097714218',
           ephemeral: true
         });
       } catch (error) {
@@ -133,13 +135,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.customId === 'registerButton') {
       const modal = new ModalBuilder()
         .setCustomId('registerModal')
-        .setTitle('Register');
+        .setTitle('Registration');
 
       // Create the text input components
       const bscWalletInput = new TextInputBuilder()
         .setCustomId('walletInput')
         // The label is the prompt the user sees for this input
-        .setLabel('What is your BSC wallet address?')
+        .setLabel('Be sure your BSC wallet address is correct.')
         .setPlaceholder('0x...')
         // Short means only a single line of text
         .setStyle(TextInputStyle.Short)
