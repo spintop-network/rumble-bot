@@ -131,7 +131,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       } catch (error) {
         console.error(error);
-        await session.abortTransaction();
+        // await session.abortTransaction();
       } finally {
         await session.endSession();
       }
@@ -228,7 +228,7 @@ setInterval(async () => {
       }
     });
   } catch (error) {
-    await session.abortTransaction();
+    // await session.abortTransaction();
     console.error('Transaction aborted:', error);
   } finally {
     await session.endSession();

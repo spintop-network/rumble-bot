@@ -14,8 +14,16 @@ const mongoose = require('mongoose');
 
 const User = require('../models/user.js');
 const Duel = require('../models/duel.js');
-const { weapons, armors, BASE_DAMAGE } = require('../constants.js');
-const { rooms, duel_bounds, duel_texts } = require('../constants');
+const {
+  rooms,
+  duel_bounds,
+  duel_texts,
+  armor_texts,
+  weapon_texts,
+  BASE_DAMAGE,
+  armors,
+  weapons
+} = require('../constants');
 const { client } = require('../client');
 
 const createEmbed = (user) => {
@@ -33,7 +41,7 @@ const createEmbed = (user) => {
       inline: true
     },
     {
-      name: 'Health Potion Cost',
+      name: 'Repair Kit Cost',
       value: `${user.health_potion_cost}`,
       inline: true
     },
@@ -57,11 +65,11 @@ const createShopEmbed = (user) => {
     inline: true
   }));
   return new EmbedBuilder()
-    .setTitle('SHOP')
+    .setTitle('ARMORY')
     .setDescription('We have precious items!\n\n')
     .addFields(
       {
-        name: 'Health Potion',
+        name: 'Repair Kit',
         value: `${user.health_potion_cost}`
       },
       {
@@ -86,7 +94,7 @@ const createRow = (custom_ids = ['status']) => {
     },
     duel: {
       customId: 'duel',
-      label: 'Duel',
+      label: 'Battle',
       style: ButtonStyle.Danger
     },
     random_encounter: {
@@ -121,7 +129,7 @@ const createRow = (custom_ids = ['status']) => {
     },
     buy_potion: {
       customId: 'buy_potion',
-      label: 'Buy Potion',
+      label: 'Buy Repair Kit',
       style: ButtonStyle.Primary
     },
     shop: {
@@ -216,7 +224,7 @@ module.exports = {
         return;
       }
       // TODO: Get this from a global state.
-      const isGameStarted = false;
+      const isGameStarted = process.env.NODE_ENV !== 'production';
       if (!isGameStarted) {
         await interaction.editReply({
           content: 'The game has not started yet!',
@@ -258,8 +266,7 @@ module.exports = {
                 components: [],
                 ephemeral: true
               });
-              await session.abortTransaction();
-              return;
+              throw new Error('User is dead.');
             }
             if (i.customId === 'weapon_list') {
               const weapon = weapons[i.values[0]];
@@ -325,7 +332,7 @@ module.exports = {
             }
           });
         } catch (error) {
-          await session.abortTransaction();
+          // await session.abortTransaction();
           console.error('Transaction aborted:', error);
         } finally {
           await session.endSession();
@@ -342,11 +349,7 @@ module.exports = {
                 content: 'You are not allowed to use this button!',
                 ephemeral: true
               });
-              await session.abortTransaction();
-              console.error(
-                'Transaction aborted: User is not allowed to use this button!'
-              );
-              return;
+              throw new Error('User is not allowed to use this button!');
             }
             user = await User.findOne({ discord_id: i.user.id }).session(
               session
@@ -358,8 +361,7 @@ module.exports = {
                 components: [],
                 ephemeral: true
               });
-              await session.abortTransaction();
-              return;
+              throw new Error('User is dead.');
             }
             // TODO: Add a status button to refresh the status of the user. Also, show if user is in duel queue.
             if (i.customId === 'status') {
@@ -390,7 +392,7 @@ module.exports = {
                   embeds: [
                     createNotificationEmbed(
                       'Hurray!',
-                      'You are already in duel queue!'
+                      'You are already in battle queue!'
                     ),
                     embed
                   ],
@@ -422,8 +424,8 @@ module.exports = {
               let otherDuelPlayer = await Duel.findOne({
                 discord_id: { $ne: i.user.id }
               })
-                .sort({ doc_created_at: 1 })
-                .session(session);
+                .session(session)
+                .sort({ doc_created_at: 1 });
               if (!otherDuelPlayer) {
                 embed = createEmbed(user);
                 const duel = new Duel({ discord_id: i.user.id });
@@ -433,7 +435,7 @@ module.exports = {
                   embeds: [
                     createNotificationEmbed(
                       'Hurray!',
-                      'You have been added to duel queue!'
+                      'You have been added to battle queue!'
                     ),
                     embed
                   ],
@@ -485,64 +487,83 @@ module.exports = {
               const perspective = ['getting_damage', 'damaging'][
                 Math.floor(Math.random() * 2)
               ];
-
               const bound = duel_bounds.find(
                 (b) =>
                   damageFloat >= b.lower_bound && damageFloat < b.upper_bound
               );
+              const boundName = isLoserDead ? 'Elimination' : bound.name;
+              const armor_text = loser.armor
+                ? armor_texts.filter((a) =>
+                    a['Armor'].includes(loser.armor.toUpperCase())
+                  )[Math.floor(Math.random() * 2)][bound.name]
+                : '';
+              const weapon_text = winner.weapon
+                ? weapon_texts.filter((w) =>
+                    w['Weapon'].includes(winner.weapon.toUpperCase())
+                  )[0][bound.name]
+                : '';
+              let armory_text = '';
+              if (armor_text && weapon_text) {
+                armory_text = [armor_text, weapon_text][
+                  Math.floor(Math.random() * 2)
+                ];
+              } else if (armor_text) {
+                armory_text = armor_text;
+              } else if (weapon_text) {
+                armory_text = weapon_text;
+              }
+              let duel_text = duel_texts.find((d) => d.name === boundName)[
+                perspective
+              ];
+              duel_text = isLoserDead
+                ? `${armory_text}\n${duel_text}`
+                : `${duel_text}\n${armory_text}`;
+              // TODO: Add lost HP and lost gold to the duel text.
+              // duel_text += `\n @kaybeden lost `
+              duel_text = duel_text
+                .replaceAll('@kazanan', userMention(winner.discord_id))
+                .replaceAll('@kaybeden', userMention(loser.discord_id));
+              const earnedGold = isLoserDead
+                ? Math.floor(
+                    loser.gold +
+                      (loser.armor ? armors[loser.armor].cost : 0) +
+                      (loser.weapon ? weapons[loser.weapon].cost : 0)
+                  )
+                : Math.floor(loser.gold / 2);
+              winner.gold += earnedGold;
+
               if (isLoserDead) {
-                const duel_text = Object.entries(
-                  duel_texts.find((d) => d.name === 'Elimination')
-                )
-                  .find(([key]) => key === perspective)[1]
-                  .replace('@kazanan', userMention(winner.discord_id))
-                  .replace('@kaybeden', userMention(loser.discord_id));
-                const earnedGold = Math.floor(
-                  loser.gold +
-                    (loser.armor ? armors[loser.armor].cost : 0) +
-                    (loser.weapon ? weapons[loser.weapon].cost : 0)
-                );
-                winner.gold += earnedGold;
-                await Duel.deleteMany({
-                  discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                }).session(session);
-                await i.update({
-                  content: duel_text,
-                  embeds: [embed],
-                  components: [row],
-                  ephemeral: true
-                });
-                const channel = await getChannel(rooms.feed);
-                if (channel) {
-                  await channel.send(duel_text);
-                }
+                await Promise.all([
+                  winner.save({ session }),
+                  Duel.deleteMany({
+                    discord_id: { $in: [winner.discord_id, loser.discord_id] }
+                  }).session(session),
+                  i.update({
+                    content: duel_text,
+                    embeds: [embed],
+                    components: [row],
+                    ephemeral: true
+                  })
+                ]);
               } else {
-                const duel_text = Object.entries(
-                  duel_texts.find((d) => d.name === bound.name)
-                )
-                  .find(([key]) => key === perspective)[1]
-                  .replace('@kazanan', userMention(winner.discord_id))
-                  .replace('@kaybeden', userMention(loser.discord_id));
-                const earnedGold = Math.floor(loser.gold / 2);
-                winner.gold += earnedGold;
                 loser.gold -= earnedGold;
                 await Promise.all([
                   winner.save({ session }),
-                  loser.save({ session })
+                  loser.save({ session }),
+                  Duel.deleteMany({
+                    discord_id: { $in: [winner.discord_id, loser.discord_id] }
+                  }).session(session),
+                  i.update({
+                    content: duel_text,
+                    embeds: [embed],
+                    components: [row],
+                    ephemeral: true
+                  })
                 ]);
-                await Duel.deleteMany({
-                  discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                }).session(session);
-                await i.update({
-                  content: duel_text,
-                  embeds: [embed],
-                  components: [row],
-                  ephemeral: true
-                });
-                const channel = await getChannel(rooms.feed);
-                if (channel) {
-                  await channel.send(duel_text);
-                }
+              }
+              const channel = await getChannel(rooms.feed);
+              if (channel) {
+                await channel.send(duel_text);
               }
             } else if (i.customId === 'random_encounter') {
               await i.reply('You have selected random encounter!');
@@ -568,7 +589,7 @@ module.exports = {
                   embeds: [
                     createNotificationEmbed(
                       'Ooops!',
-                      'You do not have enough gold to buy a health potion!'
+                      'You do not have enough gold to buy a repair kit!'
                     ),
                     createShopEmbed(user)
                   ],
@@ -584,7 +605,7 @@ module.exports = {
                   embeds: [
                     createNotificationEmbed(
                       'Success!',
-                      'You have bought and used a health potion!'
+                      'You have bought and used a repair kit!'
                     ),
                     createShopEmbed(user)
                   ],
@@ -709,7 +730,7 @@ module.exports = {
             }
           });
         } catch (error) {
-          await session.abortTransaction();
+          // await session.abortTransaction();
           console.error('Transaction aborted:', error);
         } finally {
           await session.endSession();

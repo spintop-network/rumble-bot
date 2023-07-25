@@ -1,62 +1,64 @@
+const { parse } = require('csv-parse/sync');
 const dotenv = require('dotenv');
+const { readFileSync } = require('fs');
 dotenv.config();
 
 const weapons = {
-  PLATINUM_PAN: {
+  'Platinum Pan': {
     name: 'Platinum Pan',
     description: 'Platinum Pan',
     attack_power: 1,
     cost: 50
   },
-  BALLISTIC_MISSILE_LAUNCHER: {
+  'Ballistic Missile Launcher': {
     name: 'Ballistic Missile Launcher',
     description: 'Ballistic Missile Launcher',
     attack_power: 2,
     cost: 150
   },
-  NUKA_LASER_CANNON: {
+  'N.U.K.A. Laser Cannon': {
     name: 'N.U.K.A. Laser Cannon',
     description: 'N.U.K.A. Laser Cannon',
     attack_power: 3,
     cost: 250
   },
-  ION_HEAVY_ARTILLERY: {
+  'Ion Heavy Artillery': {
     name: 'Ion Heavy Artillery',
     description: 'Ion Heavy Artillery',
     attack_power: 4,
     cost: 350
   },
-  ACRID_PLASMA_CUTTER: {
+  'Acrid Plasma Cutter': {
     name: 'Acrid Plasma Cutter',
     description: 'Acrid Plasma Cutter',
     attack_power: 5,
     cost: 450
   },
-  EMP_PARALYZER: {
+  'EMP Paralyzer': {
     name: 'EMP Paralyzer',
     description: 'EMP Paralyzer',
     attack_power: 6,
     cost: 550
   },
-  NANOBOT_SWARM_GUIDANCE_SYSTEM: {
+  'Nanobot Swarm Guidance System': {
     name: 'Nanobot Swarm Guidance System',
     description: 'Nanobot Swarm Guidance System',
     attack_power: 7,
     cost: 650
   },
-  NUCLEAR_WARHEAD: {
+  'Nuclear Warhead': {
     name: 'Nuclear Warhead',
     description: 'Nuclear Warhead',
     attack_power: 8,
     cost: 750
   },
-  REALITY_WARPER: {
+  'Reality Warper': {
     name: 'Reality Warper',
     description: 'Reality Warper',
     attack_power: 9,
     cost: 850
   },
-  SUPER_DUPER_PLANET_BLOWER: {
+  'Super Duper Planet Blower': {
     name: 'Super Duper Planet Blower',
     description: 'Super Duper Planet Blower',
     attack_power: 10,
@@ -64,70 +66,46 @@ const weapons = {
   }
 };
 
+const armor_texts = parse(readFileSync('./data/armor.tsv', 'utf8'), {
+  columns: true,
+  skip_empty_lines: true,
+  skip_records_with_empty_values: true,
+  delimiter: '\t'
+});
+
+const weapon_texts = parse(readFileSync('./data/weapon.tsv', 'utf8'), {
+  columns: true,
+  skip_empty_lines: true,
+  skip_records_with_empty_values: true,
+  delimiter: '\t'
+});
+
 const armors = {
-  BALLISTIC_SHIELD: {
+  'Ballistic Shield': {
     name: 'Ballistic Shield',
     description: 'Ballistic Shield',
     dmg_migration: 0.1,
-    cost: 50,
-    // prettier-ignore
-    armor_duel_texts: [
-      {
-        name: 'Very Low',
-        text: [
-          '@kaybeden\'s BALLISTIC SHIELD was very effective. @kazanan only managed to leave a faint scratch on @kaybeden\'s BALLISTIC SHIELD with his attack.',
-          '@kaybeden\'s BALLISTIC SHIELD was very effective. @kazanan\'s attack felt like a small rock impacting the surface of @kaybeden\'s BALLISTIC SHIELD.'
-        ]
-      },
-      {
-        name: 'Low',
-        text: [
-          '@kaybeden\'s BALLISTIC SHIELD was effective. @kazanan\'s attack caused cracks along the edge of @kaybeden\'s BALLISTIC SHIELD.',
-          '@kaybeden\'s BALLISTIC SHIELD was effective. @kazanan hit the center of @kaybeden\'s BALLISTIC SHIELD and managed to bend the shield a little bit.'
-        ]
-      },
-      {
-        name: 'Normal',
-        text: [
-          '@kaybeden’s BALLISTIC SHIELD was barely effective. @kazanan\'s attack was powerful enough to make a hole on @kaybeden\'s BALLISTIC SHIELD.',
-          '@kaybeden’s BALLISTIC SHIELD was barely effective. @kazanan\'s attack managed to shatter the glass of @kaybeden\'s BALLISTIC SHIELD\'s viewport entirely.'
-        ]
-      },
-      {
-        name: 'Critical',
-        text: [
-          '@kaybeden’s BALLISTIC SHIELD was ineffective. @kazanan\'s attack surpassed the BALLISTIC SHIELD\'s damage absorption power. @kaybeden felt the whole impact on his body, from head to toe.',
-          '@kaybeden’s BALLISTIC SHIELD was ineffective. @kazanan\'s attack managed to chop off half of @kaybeden\'s BALLISTIC SHIELD and caused tremendous damage.'
-        ]
-      },
-      {
-        name: 'Fatal',
-        text: [
-          '@kaybeden’s BALLISTIC SHIELD was impotent. @kazanan\'s attack was so powerful that @kaybeden\'s BALLISTIC SHIELD felt like a shield made of paper. @kaybeden is barely standing up after suffering from this fatal attack.',
-          '@kaybeden’s BALLISTIC SHIELD was impotent. @kazanan\'s attack force made @kaybeden lose his grip and send BALLISTIC SHIELD to 10 meters high above the ground! @kaybeden is severely wounded, barely managing to continue.'
-        ]
-      },
-    ]
+    cost: 50
   },
-  TITANIUM_PLATING: {
+  'Titanium Plating': {
     name: 'Titanium Plating',
     description: 'Titanium Plating',
     dmg_migration: 0.2,
     cost: 150
   },
-  POSITRON_ENERGY_BARRIER: {
+  'Positron Energy Barrier': {
     name: 'Positron Energy Barrier',
     description: 'Positron Energy Barrier',
     dmg_migration: 0.3,
     cost: 350
   },
-  QUANTUM_ARMOR: {
+  'Quantum Armor': {
     name: 'Quantum Armor',
     description: 'Quantum Armor',
     dmg_migration: 0.4,
     cost: 750
   },
-  GRAVITATIONAL_ABSORBER: {
+  'Gravitational Absorber': {
     name: 'Gravitational Absorber',
     description: 'Gravitational Absorber',
     dmg_migration: 0.5,
@@ -156,7 +134,7 @@ const duel_texts = [
     getting_damage:
       '@kaybeden has taken an average amount of damage from @kazanan’s attack.',
     damaging:
-      '@kazanan’s attack has connected, but @kaybeden is still standing strong.s'
+      '@kazanan’s attack has connected, but @kaybeden is still standing strong.'
   },
   {
     name: 'Normal',
@@ -211,5 +189,7 @@ module.exports = {
   rooms,
   pilotRoleId,
   duel_texts,
+  armor_texts,
+  weapon_texts,
   duel_bounds
 };
