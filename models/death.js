@@ -12,4 +12,5 @@ const DeathSchema = new mongoose.Schema(
   }
 );
 
+DeathSchema.index({ discord_id: 1 }, { unique: true });
 module.exports = mongoose.model('Death', DeathSchema, 'deaths');

@@ -39,8 +39,11 @@ exports = async () => {
       }));
 
       if (bulkOperations.length > 0) {
-        await notifications.insertMany(bulkOperations, { session });
-        await deaths.insertMany(bulkOperations, { session });
+        await notifications.insertMany(bulkOperations, {
+          session,
+          ordered: false
+        });
+        await deaths.insertMany(bulkOperations, { session, ordered: false });
       }
 
       usersCollection.updateMany(

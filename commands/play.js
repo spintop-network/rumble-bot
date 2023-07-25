@@ -14,6 +14,7 @@ const mongoose = require('mongoose');
 
 const User = require('../models/user.js');
 const Duel = require('../models/duel.js');
+const Death = require('../models/death.js');
 const {
   rooms,
   duel_bounds,
@@ -384,7 +385,7 @@ module.exports = {
             } else if (i.customId === 'duel') {
               const isUserDueled = await Duel.findOne({
                 discord_id: i.user.id
-              }).session(session);
+              });
               if (isUserDueled) {
                 embed = createEmbed(user);
                 await i.update({
@@ -420,16 +421,14 @@ module.exports = {
                 { discord_id: i.user.id },
                 { energy_points: Math.max(user.energy_points - 1, 0) },
                 { new: true }
-              ).session(session);
-              let otherDuelPlayer = await Duel.findOne({
+              );
+              let otherDuelPlayer = await Duel.findOneAndDelete({
                 discord_id: { $ne: i.user.id }
-              })
-                .session(session)
-                .sort({ doc_created_at: 1 });
+              }).sort({ doc_created_at: 1 });
               if (!otherDuelPlayer) {
                 embed = createEmbed(user);
                 const duel = new Duel({ discord_id: i.user.id });
-                await duel.save({ session });
+                await duel.save();
                 await i.update({
                   content: '',
                   embeds: [
@@ -446,7 +445,7 @@ module.exports = {
               }
               otherDuelPlayer = await User.findOne({
                 discord_id: otherDuelPlayer.discord_id
-              }).session(session);
+              });
               const playerRoll = Math.random();
               const otherPlayerRoll = Math.random();
               const playerDamage = parseFloat(
@@ -459,7 +458,7 @@ module.exports = {
               if (isTie) {
                 await Duel.deleteMany({
                   discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
-                }).session(session);
+                });
                 await i.update({
                   embeds: [
                     createNotificationEmbed('Ooops!', 'It is a tie!'),
@@ -482,7 +481,7 @@ module.exports = {
               loser.health_points = Math.round(
                 loser.health_points - damageFloat
               );
-              await loser.save({ session });
+              await loser.save();
               const isLoserDead = loser.health_points <= 0;
               const perspective = ['getting_damage', 'damaging'][
                 Math.floor(Math.random() * 2)
@@ -533,11 +532,17 @@ module.exports = {
               winner.gold += earnedGold;
 
               if (isLoserDead) {
+                const death = new Death({
+                  type: 'duel',
+                  discord_id: loser.discord_id,
+                  death_time: new Date()
+                });
                 await Promise.all([
-                  winner.save({ session }),
+                  death.save(),
+                  winner.save(),
                   Duel.deleteMany({
                     discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                  }).session(session),
+                  }),
                   i.update({
                     content: duel_text,
                     embeds: [embed],
@@ -548,11 +553,11 @@ module.exports = {
               } else {
                 loser.gold -= earnedGold;
                 await Promise.all([
-                  winner.save({ session }),
-                  loser.save({ session }),
+                  winner.save(),
+                  loser.save(),
                   Duel.deleteMany({
                     discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                  }).session(session),
+                  }),
                   i.update({
                     content: duel_text,
                     embeds: [embed],
