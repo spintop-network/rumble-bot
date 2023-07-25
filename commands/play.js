@@ -37,7 +37,7 @@ const createEmbed = (user) => {
     { name: 'Attack Power', value: `${user.attack_power}`, inline: true },
     { name: 'Energy Points', value: `${user.energy_points}/3`, inline: true },
     {
-      name: '<:zpintop:1129374515365945364> Gold',
+      name: '<:zpintop:1129374515365945364> Credit',
       value: `${user.gold}`,
       inline: true
     },
@@ -594,7 +594,7 @@ module.exports = {
                   embeds: [
                     createNotificationEmbed(
                       'Ooops!',
-                      'You do not have enough gold to buy a repair kit!'
+                      'You do not have enough credit to buy a repair kit!'
                     ),
                     createShopEmbed(user)
                   ],
