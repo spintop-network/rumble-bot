@@ -43,6 +43,11 @@ client.once(Events.ClientReady, async (c) => {
         ':large_orange_diamond: 16th to 20th: $20\n'
     );
 
+  // prettier-ignore
+  const registerEmbed2 = new EmbedBuilder()
+    .setTitle('Registration for Spintop\'s Cobot Rumble')
+    .setDescription('Are you here for Cobot Rumble? Click the link and go to registration channel!' + '\n\n' + 'https://discord.com/channels/893489228502167615/1131127969734213652');
+
   const rulesEmbed = new EmbedBuilder().setDescription(
     'Hello, pilots!\n' +
       '\n' +
@@ -149,6 +154,18 @@ client.once(Events.ClientReady, async (c) => {
       const messages = await channel.messages.fetch({ limit: 100 });
       if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
         await channel.send({ embeds: [registerEmbed], components: [row] });
+      }
+    }
+    const verificationChannel =
+      (await client.channels.cache.get(rooms.verification)) ||
+      (await client.channels.fetch(rooms.verification));
+    if (verificationChannel) {
+      const messages = await verificationChannel.messages.fetch({ limit: 100 });
+      if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
+        await verificationChannel.send({
+          embeds: [registerEmbed2],
+          components: []
+        });
       }
     }
   } catch (error) {

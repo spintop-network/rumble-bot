@@ -177,7 +177,10 @@ const rooms = {
   game: isProduction ? '1131127996674216006' : process.env.GAME_CHANNEL_ID,
   pilots_handbook: isProduction
     ? '1131860456097714218'
-    : process.env.PILOTS_HANDBOOK_CHANNEL_ID
+    : process.env.PILOTS_HANDBOOK_CHANNEL_ID,
+  verification: isProduction
+    ? '953394536036593716'
+    : process.env.VERIFICATION_CHANNEL_ID
 };
 
 const pilotRoleId = '1131877359662923817';
