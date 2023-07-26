@@ -16,7 +16,7 @@ const { client } = require('./client.js');
 const User = require('./models/user');
 const Notification = require('./models/notification');
 const { ethers } = require('ethers');
-const { pilotRoleId, rooms } = require('./constants');
+const { rooms, roles } = require('./constants');
 
 dotenv.config();
 mongoose.connect(process.env.MONGODB_URI);
@@ -70,12 +70,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const session = await mongoose.startSession();
       try {
         await session.withTransaction(async () => {
-          if (process.env.NODE_ENV === 'production') {
-            if (!interaction.member.roles.cache.has(pilotRoleId)) {
-              const pilotRole = interaction.guild.roles.cache.get(pilotRoleId);
-              interaction.member.roles.add(pilotRole).catch(console.error);
-            }
-          }
           let user = await User.findOne({
             discord_id: interaction.user.id
           }).session(session);
@@ -121,6 +115,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
             armor: null
           });
           await newUser.save({ session });
+          if (process.env.NODE_ENV === 'production') {
+            if (
+              !interaction.member.roles.cache.has(roles.pilot) ||
+              !interaction.member.roles.cache.has(roles.normie)
+            ) {
+              const rolesArray = [
+                ...Array.from(interaction.member.roles.cache.keys()),
+                roles.pilot,
+                roles.normie
+              ];
+              const uniqueRolesArray = [...new Set(rolesArray)];
+              await interaction.member.roles.set(uniqueRolesArray);
+            }
+          }
           await interaction.reply({
             content:
               // prettier-ignore

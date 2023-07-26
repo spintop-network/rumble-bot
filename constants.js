@@ -183,14 +183,17 @@ const rooms = {
     : process.env.VERIFICATION_CHANNEL_ID
 };
 
-const pilotRoleId = '1131877359662923817';
+const roles = {
+  pilot: isProduction ? '1131877359662923817' : process.env.PILOT_ROLE_ID,
+  normie: isProduction ? '893527554718326827' : process.env.NORMIE_ROLE_ID
+};
 
 module.exports = {
   weapons,
   armors,
   BASE_DAMAGE,
   rooms,
-  pilotRoleId,
+  roles,
   duel_texts,
   armor_texts,
   weapon_texts,
