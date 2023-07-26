@@ -22,23 +22,26 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.once(Events.ClientReady, async (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
 
-  const registerEmbed = new EmbedBuilder().setDescription(
-    'Hello, pilots. It’s me, BITS. Long time no see. \n' +
-      '\n' +
-      'Welcome to Spintop’s Cobot Rumble! If I am correct, you want to prove yourself as a capable pilot and win the big prize. That’s fine, but let me remind you this; this is no place for fragile people. You will destroy or be destroyed; there’s nothing in between.\n' +
-      '\n' +
-      'When you register to be a pilot by pressing the “Register” button, you’ll be enrolled in the roster and will enter your BSC wallet address. Your rewards will be sent to this wallet address, so giving an actual and working BSC wallet address is essential. After filling in your BSC wallet address info, you are officially ready to kickstart your journey as a Cobot pilot! You will be ready, but the event starts on the 7th of August, Monday, so you’ll have to wait a little while. Registrations will conclude on the 7th of August, which means no one can register after the 7th of August. After completing your registration process by pressing the “Register” button, and filling in your BSC wallet address, visit #pilots-handbook channel to learn more about Spintop’s Cobot Rumble!\n' +
-      '\n' +
-      'Oh, and a little reminder; if you manage to be the one in the last 20 pilots, here are the rewards you will get:\n' +
-      '\n' +
-      '1st: $1500\n' +
-      '2nd: $1000\n' +
-      '3rd: $800\n' +
-      '4th to 6th: $500\n' +
-      '7th to 10th: $150\n' +
-      '11th to 15th: $100\n' +
-      '16th to 20th: $20\n'
-  );
+  // prettier-ignore
+  const registerEmbed = new EmbedBuilder()
+    .setTitle('Registration for Spintop\'s Cobot Rumble')
+    .setDescription(
+      'Hello, pilots. It’s me, BITS. Long time no see. \n' +
+        '\n' +
+        'Welcome to Spintop’s Cobot Rumble! If I am correct, you want to prove yourself as a capable pilot and win the big prize. That’s fine, but let me remind you this; this is no place for fragile people. You will destroy or be destroyed; there’s nothing in between.\n' +
+        '\n' +
+        'When you register to be a pilot by pressing the “Register” button, you’ll be enrolled in the roster and will enter your BSC wallet address. Your rewards will be sent to this wallet address, so giving an actual and working BSC wallet address is essential. After filling in your BSC wallet address info, you are officially ready to kickstart your journey as a Cobot pilot! You will be ready, but the event starts on the 9th of August, Monday, so you’ll have to wait a little while. Registrations will conclude on the 9th of August, which means no one can register after the 9th of August. After completing your registration process by pressing the “Register” button, and filling in your BSC wallet address, visit #pilots-handbook channel to learn more about Spintop’s Cobot Rumble!\n' +
+        '\n' +
+        'Oh, and a little reminder; if you manage to be the one in the last 20 pilots, here are the rewards you will get:\n' +
+        '\n' +
+        ':large_orange_diamond: 1st: $1500\n' +
+        ':large_orange_diamond: 2nd: $1000\n' +
+        ':large_orange_diamond: 3rd: $800\n' +
+        ':large_orange_diamond: 4th to 6th: $500\n' +
+        ':large_orange_diamond: 7th to 10th: $150\n' +
+        ':large_orange_diamond: 11th to 15th: $100\n' +
+        ':large_orange_diamond: 16th to 20th: $20\n'
+    );
 
   const rulesEmbed = new EmbedBuilder().setDescription(
     'Hello, pilots!\n' +
@@ -116,7 +119,7 @@ client.once(Events.ClientReady, async (c) => {
       ':large_blue_diamond: Instant elimination\n' +
       '\n' +
       bold(':diamond_shape_with_a_dot_inside: Overload Protocol:') +
-      ' Spintop’s Cobot Rumble will take 7 days in total; from the 7th of August to the 14th of August, there will be no exception. The main reason is I’ve created this artificial dimension to host you for 7 days tops. After the 14th of August, I will activate my beloved Overload Protocol; this beauty will damage you 10 HP every 8 hours until your HP reaches 0. Your Cobot will eventually become a scrap pile if the rumble doesn’t end in 7 days.\n' +
+      ' Spintop’s Cobot Rumble will take 7 days in total; from the 9th of August to the 16th of August, there will be no exception. The main reason is I’ve created this artificial dimension to host you for 7 days tops. After the 16th of August, I will activate my beloved Overload Protocol; this beauty will damage you 10 HP every 8 hours until your HP reaches 0. Your Cobot will eventually become a scrap pile if the rumble doesn’t end in 7 days.\n' +
       '\n' +
       bold('Rewards:') +
       '\n' +
