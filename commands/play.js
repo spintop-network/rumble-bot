@@ -8,7 +8,8 @@ const {
   ActionRowBuilder,
   ComponentType,
   bold,
-  userMention
+  userMention,
+  italic
 } = require('discord.js');
 const mongoose = require('mongoose');
 
@@ -26,6 +27,7 @@ const {
   weapons
 } = require('../constants');
 const { client } = require('../client');
+const { bad_randoms } = require('../constants');
 
 const createEmbed = (user) => {
   return new EmbedBuilder().setTitle('Welcome to the game!').addFields(
@@ -207,9 +209,13 @@ module.exports = {
     .setDescription('Play the game!'),
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
-      let user = await User.findOne({ discord_id: interaction.user.id });
-      if (!user) {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: true });
+      }
+      const user_global = await User.findOne({
+        discord_id: interaction.user.id
+      });
+      if (!user_global) {
         await interaction.editReply({
           content:
             'You are not registered! Please use /register command to register.',
@@ -217,7 +223,7 @@ module.exports = {
         });
         return;
       }
-      if (user.health_points <= 0) {
+      if (user_global.health_points <= 0) {
         await interaction.editReply({
           content: 'You have died. You cannot play anymore.',
           ephemeral: true
@@ -233,7 +239,7 @@ module.exports = {
         });
         return;
       }
-      let embed = createEmbed(user);
+      let embed = createEmbed(user_global);
       const row = createRow(['status', 'duel', 'random_encounter', 'shop']);
       const extraRows = {};
       createExtraRows(extraRows, 'shop');
@@ -257,7 +263,7 @@ module.exports = {
         const session = await mongoose.startSession();
         try {
           await session.withTransaction(async () => {
-            user = await User.findOne({ discord_id: i.user.id }).session(
+            const user = await User.findOne({ discord_id: i.user.id }).session(
               session
             );
             if (user.health_points <= 0) {
@@ -352,10 +358,11 @@ module.exports = {
               });
               throw new Error('User is not allowed to use this button!');
             }
-            user = await User.findOne({ discord_id: i.user.id }).session(
-              session
-            );
-            if (user.health_points <= 0) {
+            const user = await User.findOne({
+              discord_id: i.user.id,
+              health_points: { $gt: 0 }
+            }).session(session);
+            if (!user) {
               await i.update({
                 content: 'You have died. You cannot play anymore.',
                 embeds: [],
@@ -364,7 +371,6 @@ module.exports = {
               });
               throw new Error('User is dead.');
             }
-            // TODO: Add a status button to refresh the status of the user. Also, show if user is in duel queue.
             if (i.customId === 'status') {
               try {
                 embed = createEmbed(user);
@@ -385,7 +391,7 @@ module.exports = {
             } else if (i.customId === 'duel') {
               const isUserDueled = await Duel.findOne({
                 discord_id: i.user.id
-              });
+              }).session(session);
               if (isUserDueled) {
                 embed = createEmbed(user);
                 await i.update({
@@ -417,18 +423,16 @@ module.exports = {
                 });
                 return;
               }
-              user = await User.findOneAndUpdate(
-                { discord_id: i.user.id },
-                { energy_points: Math.max(user.energy_points - 1, 0) },
-                { new: true }
-              );
-              let otherDuelPlayer = await Duel.findOneAndDelete({
-                discord_id: { $ne: i.user.id }
-              }).sort({ doc_created_at: 1 });
-              if (!otherDuelPlayer) {
+              const isThereOtherPlayer = await Duel.findOneAndDelete(
+                {
+                  discord_id: { $ne: i.user.id }
+                },
+                { session }
+              ).sort({ doc_created_at: 1 });
+              if (!isThereOtherPlayer) {
                 embed = createEmbed(user);
                 const duel = new Duel({ discord_id: i.user.id });
-                await duel.save();
+                await duel.save({ session });
                 await i.update({
                   content: '',
                   embeds: [
@@ -441,11 +445,16 @@ module.exports = {
                   components: [row],
                   ephemeral: true
                 });
+                await User.findOneAndUpdate(
+                  { discord_id: i.user.id, energy_points: { $gt: 0 } },
+                  { $inc: { energy_points: -1 } },
+                  { session }
+                );
                 return;
               }
-              otherDuelPlayer = await User.findOne({
-                discord_id: otherDuelPlayer.discord_id
-              });
+              const otherDuelPlayer = await User.findOne({
+                discord_id: isThereOtherPlayer.discord_id
+              }).session(session);
               const playerRoll = Math.random();
               const otherPlayerRoll = Math.random();
               const playerDamage = parseFloat(
@@ -456,9 +465,12 @@ module.exports = {
               );
               const isTie = playerDamage === otherPlayerDamage;
               if (isTie) {
-                await Duel.deleteMany({
-                  discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
-                });
+                await Duel.deleteMany(
+                  {
+                    discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
+                  },
+                  { session }
+                );
                 await i.update({
                   embeds: [
                     createNotificationEmbed('Ooops!', 'It is a tie!'),
@@ -481,7 +493,7 @@ module.exports = {
               loser.health_points = Math.round(
                 loser.health_points - damageFloat
               );
-              await loser.save();
+              await loser.save({ session });
               const isLoserDead = loser.health_points <= 0;
               const perspective = ['getting_damage', 'damaging'][
                 Math.floor(Math.random() * 2)
@@ -538,11 +550,14 @@ module.exports = {
                   death_time: new Date()
                 });
                 await Promise.all([
-                  death.save(),
-                  winner.save(),
-                  Duel.deleteMany({
-                    discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                  }),
+                  death.save({ session }),
+                  winner.save({ session }),
+                  Duel.deleteMany(
+                    {
+                      discord_id: { $in: [winner.discord_id, loser.discord_id] }
+                    },
+                    { session }
+                  ),
                   i.update({
                     content: duel_text,
                     embeds: [embed],
@@ -553,11 +568,14 @@ module.exports = {
               } else {
                 loser.gold -= earnedGold;
                 await Promise.all([
-                  winner.save(),
-                  loser.save(),
-                  Duel.deleteMany({
-                    discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                  }),
+                  winner.save({ session }),
+                  loser.save({ session }),
+                  Duel.deleteMany(
+                    {
+                      discord_id: { $in: [winner.discord_id, loser.discord_id] }
+                    },
+                    { session }
+                  ),
                   i.update({
                     content: duel_text,
                     embeds: [embed],
@@ -568,10 +586,224 @@ module.exports = {
               }
               const channel = await getChannel(rooms.feed);
               if (channel) {
-                await channel.send(duel_text);
+                await Promise.all([
+                  User.findOneAndUpdate(
+                    { discord_id: i.user.id, energy_points: { $gt: 0 } },
+                    { $inc: { energy_points: -1 } },
+                    { session }
+                  ),
+                  channel.send(duel_text)
+                ]);
+              } else {
+                await User.findOneAndUpdate(
+                  { discord_id: i.user.id, energy_points: { $gt: 0 } },
+                  { $inc: { energy_points: -1 } },
+                  { session }
+                );
               }
             } else if (i.customId === 'random_encounter') {
-              await i.reply('You have selected random encounter!');
+              if (user.energy_points <= 0) {
+                embed = createEmbed(user);
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Oops!',
+                      'You do not have enough energy points!'
+                    ),
+                    embed
+                  ],
+                  components: [row],
+                  ephemeral: true
+                });
+                return;
+              }
+              user.energy_points = Math.max(0, user.energy_points - 1);
+              const random =
+                bad_randoms[Math.floor(Math.random() * bad_randoms.length)];
+              const outcomes = random.outcome.split(',');
+              const outcomesPrivate = [];
+              const outcomesFeed = [];
+              outcomes.forEach((outcome) => {
+                const out = outcome.trim().toLowerCase();
+                console.log(out);
+                if (out.includes('lost')) {
+                  if (out.includes('hp')) {
+                    const lost_hp = out.split(' ')[1].trim();
+                    user.health_points -= parseInt(lost_hp);
+                    const eliminated_text =
+                      user.health_points <= 0 ? ' and eliminated' : '';
+                    outcomesPrivate.push(
+                      `You have lost ${lost_hp} health points${eliminated_text}.\n`
+                    );
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has lost ${lost_hp} health points${eliminated_text}.\n`
+                    );
+                  } else if (out.includes('an ep')) {
+                    user.energy_points = Math.max(0, user.energy_points - 1);
+                    outcomesPrivate.push('You have lost an energy point.\n');
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has lost an energy point.\n`
+                    );
+                  } else if (out.includes('all ep')) {
+                    user.energy_points = 0;
+                    outcomesPrivate.push('You have lost all energy points.\n');
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has lost all energy points.\n`
+                    );
+                  } else if (out.includes('two eps')) {
+                    user.energy_points = Math.max(0, user.energy_points - 2);
+                    outcomesPrivate.push('You have lost two energy points.\n');
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has lost two energy points.\n`
+                    );
+                  } else if (out.includes('credits')) {
+                    const lost_credits = out.split(' ')[1];
+                    user.gold = Math.max(0, user.gold - parseInt(lost_credits));
+                    outcomesPrivate.push(
+                      `You have lost ${lost_credits} credits.\n`
+                    );
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has lost ${lost_credits} credits.\n`
+                    );
+                  } else if (out.includes('armor')) {
+                    if (user.armor) {
+                      user.armor = null;
+                      outcomesPrivate.push('You have lost your armor.\n');
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost their armor.\n`
+                      );
+                    } else {
+                      const split_text_arr = out.split(' ');
+                      const lost_credit =
+                        split_text_arr[split_text_arr.length - 3];
+                      user.gold = Math.max(
+                        0,
+                        user.gold - parseInt(lost_credit)
+                      );
+                      outcomesPrivate.push(
+                        `You have lost ${lost_credit} credits because you don't have an armor.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost ${lost_credit} credits because they don't have an armor.\n`
+                      );
+                    }
+                  } else if (out.includes('weapon')) {
+                    if (user.weapon) {
+                      user.weapon = null;
+                      outcomesPrivate.push('You have lost your weapon.\n');
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost their weapon.\n`
+                      );
+                    } else {
+                      const split_text_arr = out.split(' ');
+                      const lost_credit =
+                        split_text_arr[split_text_arr.length - 3];
+                      user.gold = Math.max(
+                        0,
+                        user.gold - parseInt(lost_credit)
+                      );
+                      outcomesPrivate.push(
+                        `You have lost ${lost_credit} credits because you don't have a weapon.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost ${lost_credit} credits because they don't have a weapon.\n`
+                      );
+                    }
+                  }
+                } else if (out.includes('replaced')) {
+                  if (out.includes('armor')) {
+                    const armor = out
+                      .split('replaced by a ')[1]
+                      .trim()
+                      .replaceAll('\n', '');
+                    const armor_name = Object.values(armors).find(
+                      (a) => a.name.toUpperCase() === armor.toUpperCase()
+                    ).name;
+                    if (!armor_name) {
+                      // prettier-ignore
+                      throw new Error('Armor couldn\'t find');
+                    }
+                    user.armor = armor_name;
+                    outcomesPrivate.push(
+                      `Your armor has been replaced by a ${armor}.\n`
+                    );
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )}’s armor has been replaced by a ${armor}.\n`
+                    );
+                  } else if (out.includes('weapon')) {
+                    const weapon = out
+                      .split('replaced by a ')[1]
+                      .trim()
+                      .replaceAll('\n', '');
+                    const weapon_name = Object.values(weapons).find(
+                      (a) => a.name.toUpperCase() === weapon.toUpperCase()
+                    ).name;
+                    if (!weapon_name) {
+                      // prettier-ignore
+                      throw new Error('Weapon couldn\'t find');
+                    }
+                    user.weapon = weapon_name;
+                    outcomesPrivate.push(
+                      `Your weapon has been replaced by a ${weapon}.\n`
+                    );
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )}’s weapon has been replaced by a ${weapon}.\n`
+                    );
+                  }
+                } else if (out.includes('eliminated')) {
+                  user.health_points = 0;
+                  outcomesPrivate.push('You have been eliminated.\n');
+                  outcomesFeed.push(
+                    `${userMention(user.discord_id)} has been eliminated.\n`
+                  );
+                }
+              });
+              const channel =
+                (await client.channels.cache.get(rooms.feed)) ||
+                (await client.channels.fetch(rooms.feed));
+              if (channel) {
+                const feedWithoutOutcome = random.feed
+                  .slice(0, random.feed.indexOf('Outcome:'))
+                  .replaceAll('@xxx', userMention(user.discord_id));
+                await channel.send(
+                  `${feedWithoutOutcome}\n${outcomesFeed.join('')}`
+                );
+              }
+              await Promise.all([
+                i.update({
+                  embeds: [
+                    new EmbedBuilder().setDescription(
+                      `${italic(random.scenario)}\n\n${
+                        random.bits
+                      }\n\n${outcomesPrivate.join('')}`
+                    )
+                  ],
+                  ephemeral: true
+                }),
+                user.save({ session })
+              ]);
             } else if (i.customId === 'shop') {
               try {
                 await i.update({

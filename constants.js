@@ -1,4 +1,5 @@
 const { parse } = require('csv-parse/sync');
+const xlsx = require('node-xlsx');
 const dotenv = require('dotenv');
 const { readFileSync } = require('fs');
 dotenv.config();
@@ -79,6 +80,31 @@ const weapon_texts = parse(readFileSync('./data/weapon.tsv', 'utf8'), {
   skip_records_with_empty_values: true,
   delimiter: '\t'
 });
+// remove the first element
+const bad_randoms = xlsx
+  .parse(readFileSync('./data/randoms.xlsx'), {
+    sheets: 'Bad Random Encounters (27)'
+  })[0]
+  .data.slice(1)
+  .filter((i) => i.length)
+  .map((row) => row.slice(1))
+  .map((arr) => {
+    const scenario_start = arr[0].indexOf('Scenario:\n');
+    const bits_start = arr[0].indexOf('BITS:\n');
+    const outcome_start = arr[0].indexOf('Outcome:\n');
+    return {
+      scenario: arr[0]
+        .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
+        .replace('Scenario:\n', '')
+        .trim(),
+      bits: arr[0]
+        .slice(bits_start, outcome_start)
+        .replace('BITS:\n', '')
+        .trim(),
+      outcome: arr[0].slice(outcome_start).replace('Outcome:\n', '').trim(),
+      feed: arr[1].replace('Feed:\n', '').trim()
+    };
+  });
 
 const armors = {
   'Ballistic Shield': {
@@ -158,10 +184,13 @@ const duel_texts = [
   {
     name: 'Elimination',
     getting_damage:
-      '@kaybeden’s Cobot gives hundreds of system malfunction warnings. It can’t even stand still, shaking from its legs to the head. It looks like it is the end of the road. ELIMINATED',
+      '"@kaybeden’s Cobot gives hundreds of system malfunction warnings. It can’t even stand still, shaking from its legs to the head. It looks like it is the end of the road. @kazanan is victorious! \n' +
+      '\n' +
+      '@kaybeden is ELIMINATED!"',
     damaging:
-      // prettier-ignore
-      '@kazanan’s attack was so powerful and devastating that the entire Cobot\'s Steam Arena (sponsored by BITS Artificial Services) has felt the impact! His opponent is finished. ELIMINATED'
+      '"@kazanan’s attack was so powerful and devastating that the entire Cobot\'s Steam Arena (sponsored by BITS Artificial Services) has felt the impact! \n' +
+      '\n' +
+      '@kaybeden is ELIMINATED!"'
   }
 ];
 
@@ -197,5 +226,6 @@ module.exports = {
   duel_texts,
   armor_texts,
   weapon_texts,
-  duel_bounds
+  duel_bounds,
+  bad_randoms
 };
