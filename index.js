@@ -1,21 +1,12 @@
 // Require the necessary discord.js classes
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  Events,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  EmbedBuilder,
-  userMention
-} = require('discord.js');
+const { Events, EmbedBuilder, userMention } = require('discord.js');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { client } = require('./client.js');
 const User = require('./models/user');
 const Notification = require('./models/notification');
-const { ethers } = require('ethers');
 const { rooms, roles } = require('./constants');
 
 dotenv.config();
@@ -65,12 +56,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
     }
-  } else if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'registerModal') {
+  } else if (interaction.isButton()) {
+    if (interaction.customId === 'registerButton') {
       const session = await mongoose.startSession();
       try {
         await session.withTransaction(async () => {
-          let user = await User.findOne({
+          const user = await User.findOne({
             discord_id: interaction.user.id
           }).session(session);
           if (user) {
@@ -80,32 +71,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
             });
             return;
           }
-          const wallet_id = interaction.fields.getTextInputValue('walletInput');
-          if (!wallet_id) {
-            await interaction.reply({
-              content: 'Please provide your wallet ID!',
-              ephemeral: true
-            });
-            return;
-          }
-          if (!ethers.utils.isAddress(wallet_id)) {
-            await interaction.reply({
-              content: 'Please provide a valid wallet ID!',
-              ephemeral: true
-            });
-            return;
-          }
-          user = await User.findOne({ wallet_id }).session(session);
-          if (user) {
-            await interaction.reply({
-              content: 'This wallet ID is already registered!',
-              ephemeral: true
-            });
-            return;
-          }
           const newUser = new User({
             discord_id: interaction.user.id,
-            wallet_id,
             health_points: 100,
             attack_power: 2,
             energy_points: 3,
@@ -139,38 +106,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       } catch (error) {
         console.error(error);
-        // await session.abortTransaction();
       } finally {
         await session.endSession();
       }
-    }
-  } else if (interaction.isButton()) {
-    if (interaction.customId === 'registerButton') {
-      const modal = new ModalBuilder()
-        .setCustomId('registerModal')
-        .setTitle('Registration');
-
-      // Create the text input components
-      const bscWalletInput = new TextInputBuilder()
-        .setCustomId('walletInput')
-        // The label is the prompt the user sees for this input
-        .setLabel('Be sure your BSC wallet address is correct.')
-        .setPlaceholder('0x...')
-        // Short means only a single line of text
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-      // An action row only holds one text input,
-      // so you need one action row per text input.
-      const firstActionRow = new ActionRowBuilder().addComponents(
-        bscWalletInput
-      );
-
-      // Add inputs to the modal
-      modal.addComponents(firstActionRow);
-
-      // Show the modal to the user
-      await interaction.showModal(modal);
     }
   }
 });
