@@ -27,7 +27,7 @@ const {
   weapons
 } = require('../constants');
 const { client } = require('../client');
-const { bad_randoms } = require('../constants');
+const { randoms } = require('../constants');
 
 const createEmbed = (user) => {
   return new EmbedBuilder().setTitle('Welcome to the game!').addFields(
@@ -618,192 +618,378 @@ module.exports = {
                 return;
               }
               user.energy_points = Math.max(0, user.energy_points - 1);
-              const random =
-                bad_randoms[Math.floor(Math.random() * bad_randoms.length)];
-              const outcomes = random.outcome.split(',');
-              const outcomesPrivate = [];
-              const outcomesFeed = [];
-              outcomes.forEach((outcome) => {
-                const out = outcome.trim().toLowerCase();
-                console.log(out);
-                if (out.includes('lost')) {
-                  if (out.includes('hp')) {
-                    const lost_hp = out.split(' ')[1].trim();
-                    user.health_points -= parseInt(lost_hp);
-                    const eliminated_text =
-                      user.health_points <= 0 ? ' and eliminated' : '';
-                    outcomesPrivate.push(
-                      `You have lost ${lost_hp} health points${eliminated_text}.\n`
-                    );
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )} has lost ${lost_hp} health points${eliminated_text}.\n`
-                    );
-                  } else if (out.includes('an ep')) {
-                    user.energy_points = Math.max(0, user.energy_points - 1);
-                    outcomesPrivate.push('You have lost an energy point.\n');
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )} has lost an energy point.\n`
-                    );
-                  } else if (out.includes('all ep')) {
-                    user.energy_points = 0;
-                    outcomesPrivate.push('You have lost all energy points.\n');
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )} has lost all energy points.\n`
-                    );
-                  } else if (out.includes('two eps')) {
-                    user.energy_points = Math.max(0, user.energy_points - 2);
-                    outcomesPrivate.push('You have lost two energy points.\n');
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )} has lost two energy points.\n`
-                    );
-                  } else if (out.includes('credits')) {
-                    const lost_credits = out.split(' ')[1];
-                    user.gold = Math.max(0, user.gold - parseInt(lost_credits));
-                    outcomesPrivate.push(
-                      `You have lost ${lost_credits} credits.\n`
-                    );
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )} has lost ${lost_credits} credits.\n`
-                    );
-                  } else if (out.includes('armor')) {
-                    if (user.armor) {
-                      user.armor = null;
-                      outcomesPrivate.push('You have lost your armor.\n');
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has lost their armor.\n`
-                      );
-                    } else {
-                      const split_text_arr = out.split(' ');
-                      const lost_credit =
-                        split_text_arr[split_text_arr.length - 3];
-                      user.gold = Math.max(
-                        0,
-                        user.gold - parseInt(lost_credit)
-                      );
-                      outcomesPrivate.push(
-                        `You have lost ${lost_credit} credits because you don't have an armor.\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has lost ${lost_credit} credits because they don't have an armor.\n`
-                      );
-                    }
-                  } else if (out.includes('weapon')) {
-                    if (user.weapon) {
-                      user.weapon = null;
-                      outcomesPrivate.push('You have lost your weapon.\n');
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has lost their weapon.\n`
-                      );
-                    } else {
-                      const split_text_arr = out.split(' ');
-                      const lost_credit =
-                        split_text_arr[split_text_arr.length - 3];
-                      user.gold = Math.max(
-                        0,
-                        user.gold - parseInt(lost_credit)
-                      );
-                      outcomesPrivate.push(
-                        `You have lost ${lost_credit} credits because you don't have a weapon.\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has lost ${lost_credit} credits because they don't have a weapon.\n`
-                      );
-                    }
-                  }
-                } else if (out.includes('replaced')) {
-                  if (out.includes('armor')) {
-                    const armor = out
-                      .split('replaced by a ')[1]
-                      .trim()
-                      .replaceAll('\n', '');
-                    const armor_name = Object.values(armors).find(
-                      (a) => a.name.toUpperCase() === armor.toUpperCase()
-                    ).name;
-                    if (!armor_name) {
-                      // prettier-ignore
-                      throw new Error('Armor couldn\'t find');
-                    }
-                    user.armor = armor_name;
-                    outcomesPrivate.push(
-                      `Your armor has been replaced by a ${armor}.\n`
-                    );
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )}’s armor has been replaced by a ${armor}.\n`
-                    );
-                  } else if (out.includes('weapon')) {
-                    const weapon = out
-                      .split('replaced by a ')[1]
-                      .trim()
-                      .replaceAll('\n', '');
-                    const weapon_name = Object.values(weapons).find(
-                      (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                    ).name;
-                    if (!weapon_name) {
-                      // prettier-ignore
-                      throw new Error('Weapon couldn\'t find');
-                    }
-                    user.weapon = weapon_name;
-                    outcomesPrivate.push(
-                      `Your weapon has been replaced by a ${weapon}.\n`
-                    );
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )}’s weapon has been replaced by a ${weapon}.\n`
-                    );
-                  }
-                } else if (out.includes('eliminated')) {
-                  user.health_points = 0;
-                  outcomesPrivate.push('You have been eliminated.\n');
-                  outcomesFeed.push(
-                    `${userMention(user.discord_id)} has been eliminated.\n`
-                  );
-                }
-              });
+              const random_number = Math.floor(Math.random() * randoms.length);
+              const random = randoms[random_number];
               const channel =
                 (await client.channels.cache.get(rooms.feed)) ||
                 (await client.channels.fetch(rooms.feed));
-              if (channel) {
-                const feedWithoutOutcome = random.feed
-                  .slice(0, random.feed.indexOf('Outcome:'))
-                  .replaceAll('@xxx', userMention(user.discord_id));
-                await channel.send(
-                  `${feedWithoutOutcome}\n${outcomesFeed.join('')}`
-                );
+              if (random_number >= 0 && random_number <= 44) {
+                const outcomes = random.outcome.split(',');
+                const outcomesPrivate = [];
+                const outcomesFeed = [];
+                outcomes.forEach((outcome) => {
+                  const out = outcome.trim().toLowerCase();
+                  console.log(out);
+                  if (out.includes('lost')) {
+                    if (out.includes('hp')) {
+                      const lost_hp = out.split(' ')[1].trim();
+                      user.health_points -= parseInt(lost_hp);
+                      const eliminated_text =
+                        user.health_points <= 0 ? ' and eliminated' : '';
+                      outcomesPrivate.push(
+                        `You have lost ${lost_hp} health points${eliminated_text}.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost ${lost_hp} health points${eliminated_text}.\n`
+                      );
+                    } else if (out.includes('an ep')) {
+                      user.energy_points = Math.max(0, user.energy_points - 1);
+                      outcomesPrivate.push('You have lost an energy point.\n');
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost an energy point.\n`
+                      );
+                    } else if (out.includes('all ep')) {
+                      user.energy_points = 0;
+                      outcomesPrivate.push(
+                        'You have lost all energy points.\n'
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost all energy points.\n`
+                      );
+                    } else if (out.includes('two eps')) {
+                      user.energy_points = Math.max(0, user.energy_points - 2);
+                      outcomesPrivate.push(
+                        'You have lost two energy points.\n'
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost two energy points.\n`
+                      );
+                    } else if (out.includes('credits')) {
+                      const lost_credits = out.split(' ')[1];
+                      user.gold = Math.max(
+                        0,
+                        user.gold - parseInt(lost_credits)
+                      );
+                      outcomesPrivate.push(
+                        `You have lost ${lost_credits} credits.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has lost ${lost_credits} credits.\n`
+                      );
+                    } else if (out.includes('armor')) {
+                      if (user.armor) {
+                        user.armor = null;
+                        outcomesPrivate.push('You have lost your armor.\n');
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has lost their armor.\n`
+                        );
+                      } else {
+                        const split_text_arr = out.split(' ');
+                        const lost_credit =
+                          split_text_arr[split_text_arr.length - 3];
+                        user.gold = Math.max(
+                          0,
+                          user.gold - parseInt(lost_credit)
+                        );
+                        outcomesPrivate.push(
+                          `You have lost ${lost_credit} credits because you don't have an armor.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has lost ${lost_credit} credits because they don't have an armor.\n`
+                        );
+                      }
+                    } else if (out.includes('weapon')) {
+                      if (user.weapon) {
+                        user.weapon = null;
+                        outcomesPrivate.push('You have lost your weapon.\n');
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has lost their weapon.\n`
+                        );
+                      } else {
+                        const split_text_arr = out.split(' ');
+                        const lost_credit =
+                          split_text_arr[split_text_arr.length - 3];
+                        user.gold = Math.max(
+                          0,
+                          user.gold - parseInt(lost_credit)
+                        );
+                        outcomesPrivate.push(
+                          `You have lost ${lost_credit} credits because you don't have a weapon.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has lost ${lost_credit} credits because they don't have a weapon.\n`
+                        );
+                      }
+                    }
+                  } else if (out.includes('replaced')) {
+                    if (out.includes('armor')) {
+                      const armor = out
+                        .split('replaced by a ')[1]
+                        .replaceAll('\n', '')
+                        .trim();
+                      const armor_name = Object.values(armors).find(
+                        (a) => a.name.toUpperCase() === armor.toUpperCase()
+                      ).name;
+                      if (!armor_name) {
+                        // prettier-ignore
+                        throw new Error('Armor couldn\'t find');
+                      }
+                      user.armor = armor_name;
+                      outcomesPrivate.push(
+                        `Your armor has been replaced by a ${armor}.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )}’s armor has been replaced by a ${armor}.\n`
+                      );
+                    } else if (out.includes('weapon')) {
+                      const weapon = out
+                        .split('replaced by a ')[1]
+                        .replaceAll('\n', '')
+                        .trim();
+                      const weapon_name = Object.values(weapons).find(
+                        (a) => a.name.toUpperCase() === weapon.toUpperCase()
+                      ).name;
+                      if (!weapon_name) {
+                        // prettier-ignore
+                        throw new Error('Weapon couldn\'t find');
+                      }
+                      user.weapon = weapon_name;
+                      outcomesPrivate.push(
+                        `Your weapon has been replaced by a ${weapon}.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )}’s weapon has been replaced by a ${weapon}.\n`
+                      );
+                    }
+                  } else if (out.includes('eliminated')) {
+                    user.health_points = 0;
+                    outcomesPrivate.push('You have been eliminated.\n');
+                    outcomesFeed.push(
+                      `${userMention(user.discord_id)} has been eliminated.\n`
+                    );
+                  } else if (
+                    out.includes('earned') &&
+                    out.includes('credits')
+                  ) {
+                    const earned_credits = out.split(' ')[1];
+                    user.gold += parseInt(earned_credits);
+                    outcomesPrivate.push(
+                      `You have earned ${earned_credits} credits.\n`
+                    );
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has earned ${earned_credits} credits.\n`
+                    );
+                  } else if (out.includes('gained') && out.includes('hp')) {
+                    const gained_hp = out.split(' ')[1].trim();
+                    user.health_points += parseInt(gained_hp);
+                    outcomesPrivate.push(
+                      `You have gained ${gained_hp} health points.\n`
+                    );
+                    outcomesFeed.push(
+                      `${userMention(
+                        user.discord_id
+                      )} has gained ${gained_hp} health points.\n`
+                    );
+                  } else if (out.includes('regenerated')) {
+                    if (out.includes('an ep')) {
+                      user.energy_points += 1;
+                      outcomesPrivate.push(
+                        'You have regenerated an energy point.\n'
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has regenerated an energy point.\n`
+                      );
+                    } else if (out.includes('two eps')) {
+                      user.energy_points += 2;
+                      outcomesPrivate.push(
+                        'You have regenerated two energy points.\n'
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has regenerated two energy points.\n`
+                      );
+                    } else if (out.includes('all eps')) {
+                      user.energy_points = 3;
+                      outcomesPrivate.push(
+                        'You have regenerated all energy points.\n'
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has regenerated all energy points.\n`
+                      );
+                    }
+                  } else if (out.includes('upgraded')) {
+                    if (out.includes('armor')) {
+                      const armor = out
+                        .replace('upgraded your armor to ', '')
+                        .replaceAll('\n', '')
+                        .trim();
+                      const armor_name = Object.values(armors).find(
+                        (a) => a.name.toUpperCase() === armor.toUpperCase()
+                      ).name;
+                      if (!armor_name) {
+                        // prettier-ignore
+                        throw new Error('Armor couldn\'t find');
+                      }
+                      user.armor = armor_name;
+                      outcomesPrivate.push(
+                        `Your armor has been upgraded to ${armor}.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )}’s armor has been upgraded to ${armor}.\n`
+                      );
+                    } else if (out.includes('weapon')) {
+                      const weapon = out
+                        .replace('upgraded your weapon to ', '')
+                        .trim()
+                        .replaceAll('\n', '');
+                      const weapon_name = Object.values(weapons).find(
+                        (a) => a.name.toUpperCase() === weapon.toUpperCase()
+                      ).name;
+                      if (!weapon_name) {
+                        // prettier-ignore
+                        throw new Error('Weapon couldn\'t find');
+                      }
+                      user.weapon = weapon_name;
+                      outcomesPrivate.push(
+                        `Your weapon has been upgraded to ${weapon}.\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )}’s weapon has been upgraded to ${weapon}.\n`
+                      );
+                    }
+                  } else if (out.includes('acquired')) {
+                    if (out.includes('armor')) {
+                      const armor = out
+                        .replace('acquired ', '')
+                        .replace('(armor)', '')
+                        .replaceAll('\n', '')
+                        .trim();
+                      const armor_name = Object.values(armors).find(
+                        (a) => a.name.toUpperCase() === armor.toUpperCase()
+                      ).name;
+                      if (!armor_name) {
+                        // prettier-ignore
+                        throw new Error('Armor couldn\'t find');
+                      }
+                      user.armor = armor_name;
+                      outcomesPrivate.push(
+                        `You have acquired ${armor} (armor).\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has acquired ${armor} (armor).\n`
+                      );
+                    } else if (out.includes('weapon')) {
+                      const weapon = out
+                        .replace('acquired ', '')
+                        .replace('(weapon)', '')
+                        .replaceAll('\n', '')
+                        .trim();
+                      const weapon_name = Object.values(weapons).find(
+                        (a) => a.name.toUpperCase() === weapon.toUpperCase()
+                      ).name;
+                      if (!weapon_name) {
+                        // prettier-ignore
+                        throw new Error('Weapon couldn\'t find');
+                      }
+                      user.weapon = weapon_name;
+                      outcomesPrivate.push(
+                        `You have acquired ${weapon} (weapon).\n`
+                      );
+                      outcomesFeed.push(
+                        `${userMention(
+                          user.discord_id
+                        )} has acquired ${weapon} (weapon).\n`
+                      );
+                    }
+                  }
+                });
+                if (channel) {
+                  const feedWithoutOutcome = random.feed
+                    .slice(0, random.feed.indexOf('Outcome:'))
+                    .replaceAll('@xxx', userMention(user.discord_id));
+                  await channel.send(
+                    `${feedWithoutOutcome}\n${outcomesFeed.join('')}`
+                  );
+                }
+                await Promise.all([
+                  i.update({
+                    embeds: [
+                      new EmbedBuilder().setDescription(
+                        `${italic(random.scenario)}\n\n${
+                          random.bits
+                        }\n\n${outcomesPrivate.join('')}`
+                      )
+                    ],
+                    ephemeral: true
+                  }),
+                  user.save({ session })
+                ]);
+              } else if (random_number >= 45 && random_number <= 49) {
+                if (channel) {
+                  const feedWithoutOutcome = random.feed.replaceAll(
+                    '@xxx',
+                    userMention(user.discord_id)
+                  );
+                  await channel.send(feedWithoutOutcome);
+                  await Promise.all([
+                    channel.send(feedWithoutOutcome),
+                    i.update({
+                      embeds: [
+                        new EmbedBuilder().setDescription(
+                          `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                        )
+                      ],
+                      ephemeral: true
+                    })
+                  ]);
+                } else {
+                  await i.update({
+                    embeds: [
+                      new EmbedBuilder().setDescription(
+                        `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                      )
+                    ],
+                    ephemeral: true
+                  });
+                }
+              } else if (random_number >= 50) {
+                console.log('Battle encounter');
               }
-              await Promise.all([
-                i.update({
-                  embeds: [
-                    new EmbedBuilder().setDescription(
-                      `${italic(random.scenario)}\n\n${
-                        random.bits
-                      }\n\n${outcomesPrivate.join('')}`
-                    )
-                  ],
-                  ephemeral: true
-                }),
-                user.save({ session })
-              ]);
             } else if (i.customId === 'shop') {
               try {
                 await i.update({

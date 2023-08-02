@@ -80,12 +80,14 @@ const weapon_texts = parse(readFileSync('./data/weapon.tsv', 'utf8'), {
   skip_records_with_empty_values: true,
   delimiter: '\t'
 });
-// remove the first element
-const bad_randoms = xlsx
-  .parse(readFileSync('./data/randoms.xlsx'), {
-    sheets: 'Bad Random Encounters (27)'
-  })[0]
-  .data.slice(1)
+
+const randoms_file = readFileSync('./data/randoms.xlsx');
+
+const bad_and_good_randoms = xlsx
+  .parse(randoms_file, {
+    sheets: ['Bad Random Encounters (27)', 'Good Random Encounters (18)']
+  })
+  .flatMap((sheet) => sheet.data.slice(1))
   .filter((i) => i.length)
   .map((row) => row.slice(1))
   .map((arr) => {
@@ -102,6 +104,43 @@ const bad_randoms = xlsx
         .replace('BITS:\n', '')
         .trim(),
       outcome: arr[0].slice(outcome_start).replace('Outcome:\n', '').trim(),
+      feed: arr[1].replace('Feed:\n', '').trim()
+    };
+  });
+
+const neutral_randoms = xlsx
+  .parse(randoms_file, {
+    sheets: 'Neutral Encounters (5)'
+  })[0]
+  .data.slice(1)
+  .filter((i) => i.length)
+  .map((arr) => {
+    const scenario_start = arr[0].indexOf('Scenario:\n');
+    const bits_start = arr[0].indexOf('BITS:\n');
+    return {
+      scenario: arr[0]
+        .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
+        .replace('Scenario:\n', '')
+        .trim(),
+      bits: arr[0].slice(bits_start).replace('BITS:\n', '').trim(),
+      feed: arr[1].replace('Feed:\n', '').trim()
+    };
+  });
+('a');
+
+const battle_randoms = xlsx
+  .parse(randoms_file, {
+    sheets: 'Battle Encounters (5)'
+  })[0]
+  .data.slice(1)
+  .filter((i) => i.length)
+  .map((arr) => {
+    const scenario_start = arr[0].indexOf('Scenario:\n');
+    return {
+      scenario: arr[0]
+        .slice(scenario_start + 'Scenario\n\n'.length)
+        .replace('Scenario:\n', '')
+        .trim(),
       feed: arr[1].replace('Feed:\n', '').trim()
     };
   });
@@ -227,5 +266,5 @@ module.exports = {
   armor_texts,
   weapon_texts,
   duel_bounds,
-  bad_randoms
+  randoms: [...bad_and_good_randoms, ...neutral_randoms, ...battle_randoms]
 };
