@@ -203,6 +203,227 @@ const createExtraRows = (obj, key) => {
 const getChannel = async (channel_id) =>
   (await client.channels.cache.get(channel_id)) ||
   (await client.channels.fetch(channel_id));
+
+const startDuel = async (
+  session,
+  user,
+  i,
+  embed,
+  row,
+  is_random_encounter = false
+) => {
+  const isUserDueled = await Duel.findOne({
+    discord_id: i.user.id
+  }).session(session);
+  if (isUserDueled) {
+    if (!is_random_encounter) {
+      embed = createEmbed(user);
+      await i.update({
+        content: '',
+        embeds: [
+          createNotificationEmbed(
+            'Hurray!',
+            'You are already in battle queue!'
+          ),
+          embed
+        ],
+        components: [row],
+        ephemeral: true
+      });
+    }
+    return;
+  }
+  if (user.energy_points <= 0) {
+    if (!is_random_encounter) {
+      embed = createEmbed(user);
+      await i.update({
+        embeds: [
+          createNotificationEmbed(
+            'Oops!',
+            'You do not have enough energy points!'
+          ),
+          embed
+        ],
+        components: [row],
+        ephemeral: true
+      });
+    }
+    return;
+  }
+  const isThereOtherPlayer = await Duel.findOneAndDelete(
+    {
+      discord_id: { $ne: i.user.id }
+    },
+    { session }
+  ).sort({ doc_created_at: 1 });
+  if (!isThereOtherPlayer) {
+    const duel = new Duel({ discord_id: i.user.id });
+    await duel.save({ session });
+    if (!is_random_encounter) {
+      embed = createEmbed(user);
+      await i.update({
+        content: '',
+        embeds: [
+          createNotificationEmbed(
+            'Hurray!',
+            'You have been added to battle queue!'
+          ),
+          embed
+        ],
+        components: [row],
+        ephemeral: true
+      });
+      await User.findOneAndUpdate(
+        { discord_id: i.user.id, energy_points: { $gt: 0 } },
+        { $inc: { energy_points: -1 } },
+        { session }
+      );
+    }
+    return;
+  }
+  const otherDuelPlayer = await User.findOne({
+    discord_id: isThereOtherPlayer.discord_id
+  }).session(session);
+  const playerRoll = Math.random();
+  const otherPlayerRoll = Math.random();
+  const playerDamage = parseFloat((playerRoll * user.attack_power).toFixed(2));
+  const otherPlayerDamage = parseFloat(
+    (otherPlayerRoll * otherDuelPlayer.attack_power).toFixed(2)
+  );
+  const isTie = playerDamage === otherPlayerDamage;
+  if (isTie) {
+    await Duel.deleteMany(
+      {
+        discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
+      },
+      { session }
+    );
+    if (!is_random_encounter) {
+      await i.update({
+        embeds: [createNotificationEmbed('Ooops!', 'It is a tie!'), embed],
+        components: [row],
+        ephemeral: true
+      });
+    }
+    return;
+  }
+  const winner = playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
+  const loser = playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
+  const damageFloat =
+    BASE_DAMAGE +
+    Math.abs(playerDamage - otherPlayerDamage) *
+      (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)) *
+      10;
+  loser.health_points = Math.round(loser.health_points - damageFloat);
+  await loser.save({ session });
+  const isLoserDead = loser.health_points <= 0;
+  const perspective = ['getting_damage', 'damaging'][
+    Math.floor(Math.random() * 2)
+  ];
+  const bound = duel_bounds.find(
+    (b) => damageFloat >= b.lower_bound && damageFloat < b.upper_bound
+  );
+  const boundName = isLoserDead ? 'Elimination' : bound.name;
+  const armor_text = loser.armor
+    ? armor_texts.filter((a) => a['Armor'].includes(loser.armor.toUpperCase()))[
+        Math.floor(Math.random() * 2)
+      ][bound.name]
+    : '';
+  const weapon_text = winner.weapon
+    ? weapon_texts.filter((w) =>
+        w['Weapon'].includes(winner.weapon.toUpperCase())
+      )[0][bound.name]
+    : '';
+  let armory_text = '';
+  if (armor_text && weapon_text) {
+    armory_text = [armor_text, weapon_text][Math.floor(Math.random() * 2)];
+  } else if (armor_text) {
+    armory_text = armor_text;
+  } else if (weapon_text) {
+    armory_text = weapon_text;
+  }
+  let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
+  duel_text = isLoserDead
+    ? `${armory_text}\n${duel_text}`
+    : `${duel_text}\n${armory_text}`;
+  // TODO: Add lost HP and lost gold to the duel text.
+  // duel_text += `\n @kaybeden lost `
+  duel_text = duel_text
+    .replaceAll('@kazanan', userMention(winner.discord_id))
+    .replaceAll('@kaybeden', userMention(loser.discord_id));
+  const earnedGold = isLoserDead
+    ? Math.floor(
+        loser.gold +
+          (loser.armor ? armors[loser.armor].cost : 0) +
+          (loser.weapon ? weapons[loser.weapon].cost : 0)
+      )
+    : Math.floor(loser.gold / 2);
+  winner.gold += earnedGold;
+
+  if (isLoserDead) {
+    const death = new Death({
+      type: 'duel',
+      discord_id: loser.discord_id,
+      death_time: new Date()
+    });
+    await Promise.all([
+      death.save({ session }),
+      winner.save({ session }),
+      Duel.deleteMany(
+        {
+          discord_id: { $in: [winner.discord_id, loser.discord_id] }
+        },
+        { session }
+      )
+    ]);
+    if (!is_random_encounter) {
+      await i.update({
+        content: duel_text,
+        embeds: [embed],
+        components: [row],
+        ephemeral: true
+      });
+    }
+  } else {
+    loser.gold -= earnedGold;
+    await Promise.all([
+      winner.save({ session }),
+      loser.save({ session }),
+      Duel.deleteMany(
+        {
+          discord_id: { $in: [winner.discord_id, loser.discord_id] }
+        },
+        { session }
+      )
+    ]);
+    if (!is_random_encounter) {
+      await i.update({
+        content: duel_text,
+        embeds: [embed],
+        components: [row],
+        ephemeral: true
+      });
+    }
+  }
+  const channel = await getChannel(rooms.feed);
+  if (channel) {
+    await Promise.all([
+      User.findOneAndUpdate(
+        { discord_id: i.user.id, energy_points: { $gt: 0 } },
+        { $inc: { energy_points: -1 } },
+        { session }
+      ),
+      channel.send(duel_text)
+    ]);
+  } else {
+    await User.findOneAndUpdate(
+      { discord_id: i.user.id, energy_points: { $gt: 0 } },
+      { $inc: { energy_points: -1 } },
+      { session }
+    );
+  }
+};
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
@@ -389,218 +610,7 @@ module.exports = {
                 });
               }
             } else if (i.customId === 'duel') {
-              const isUserDueled = await Duel.findOne({
-                discord_id: i.user.id
-              }).session(session);
-              if (isUserDueled) {
-                embed = createEmbed(user);
-                await i.update({
-                  content: '',
-                  embeds: [
-                    createNotificationEmbed(
-                      'Hurray!',
-                      'You are already in battle queue!'
-                    ),
-                    embed
-                  ],
-                  components: [row],
-                  ephemeral: true
-                });
-                return;
-              }
-              if (user.energy_points <= 0) {
-                embed = createEmbed(user);
-                await i.update({
-                  embeds: [
-                    createNotificationEmbed(
-                      'Oops!',
-                      'You do not have enough energy points!'
-                    ),
-                    embed
-                  ],
-                  components: [row],
-                  ephemeral: true
-                });
-                return;
-              }
-              const isThereOtherPlayer = await Duel.findOneAndDelete(
-                {
-                  discord_id: { $ne: i.user.id }
-                },
-                { session }
-              ).sort({ doc_created_at: 1 });
-              if (!isThereOtherPlayer) {
-                embed = createEmbed(user);
-                const duel = new Duel({ discord_id: i.user.id });
-                await duel.save({ session });
-                await i.update({
-                  content: '',
-                  embeds: [
-                    createNotificationEmbed(
-                      'Hurray!',
-                      'You have been added to battle queue!'
-                    ),
-                    embed
-                  ],
-                  components: [row],
-                  ephemeral: true
-                });
-                await User.findOneAndUpdate(
-                  { discord_id: i.user.id, energy_points: { $gt: 0 } },
-                  { $inc: { energy_points: -1 } },
-                  { session }
-                );
-                return;
-              }
-              const otherDuelPlayer = await User.findOne({
-                discord_id: isThereOtherPlayer.discord_id
-              }).session(session);
-              const playerRoll = Math.random();
-              const otherPlayerRoll = Math.random();
-              const playerDamage = parseFloat(
-                (playerRoll * user.attack_power).toFixed(2)
-              );
-              const otherPlayerDamage = parseFloat(
-                (otherPlayerRoll * otherDuelPlayer.attack_power).toFixed(2)
-              );
-              const isTie = playerDamage === otherPlayerDamage;
-              if (isTie) {
-                await Duel.deleteMany(
-                  {
-                    discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
-                  },
-                  { session }
-                );
-                await i.update({
-                  embeds: [
-                    createNotificationEmbed('Ooops!', 'It is a tie!'),
-                    embed
-                  ],
-                  components: [row],
-                  ephemeral: true
-                });
-                return;
-              }
-              const winner =
-                playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
-              const loser =
-                playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
-              const damageFloat =
-                BASE_DAMAGE +
-                Math.abs(playerDamage - otherPlayerDamage) *
-                  (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)) *
-                  10;
-              loser.health_points = Math.round(
-                loser.health_points - damageFloat
-              );
-              await loser.save({ session });
-              const isLoserDead = loser.health_points <= 0;
-              const perspective = ['getting_damage', 'damaging'][
-                Math.floor(Math.random() * 2)
-              ];
-              const bound = duel_bounds.find(
-                (b) =>
-                  damageFloat >= b.lower_bound && damageFloat < b.upper_bound
-              );
-              const boundName = isLoserDead ? 'Elimination' : bound.name;
-              const armor_text = loser.armor
-                ? armor_texts.filter((a) =>
-                    a['Armor'].includes(loser.armor.toUpperCase())
-                  )[Math.floor(Math.random() * 2)][bound.name]
-                : '';
-              const weapon_text = winner.weapon
-                ? weapon_texts.filter((w) =>
-                    w['Weapon'].includes(winner.weapon.toUpperCase())
-                  )[0][bound.name]
-                : '';
-              let armory_text = '';
-              if (armor_text && weapon_text) {
-                armory_text = [armor_text, weapon_text][
-                  Math.floor(Math.random() * 2)
-                ];
-              } else if (armor_text) {
-                armory_text = armor_text;
-              } else if (weapon_text) {
-                armory_text = weapon_text;
-              }
-              let duel_text = duel_texts.find((d) => d.name === boundName)[
-                perspective
-              ];
-              duel_text = isLoserDead
-                ? `${armory_text}\n${duel_text}`
-                : `${duel_text}\n${armory_text}`;
-              // TODO: Add lost HP and lost gold to the duel text.
-              // duel_text += `\n @kaybeden lost `
-              duel_text = duel_text
-                .replaceAll('@kazanan', userMention(winner.discord_id))
-                .replaceAll('@kaybeden', userMention(loser.discord_id));
-              const earnedGold = isLoserDead
-                ? Math.floor(
-                    loser.gold +
-                      (loser.armor ? armors[loser.armor].cost : 0) +
-                      (loser.weapon ? weapons[loser.weapon].cost : 0)
-                  )
-                : Math.floor(loser.gold / 2);
-              winner.gold += earnedGold;
-
-              if (isLoserDead) {
-                const death = new Death({
-                  type: 'duel',
-                  discord_id: loser.discord_id,
-                  death_time: new Date()
-                });
-                await Promise.all([
-                  death.save({ session }),
-                  winner.save({ session }),
-                  Duel.deleteMany(
-                    {
-                      discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                    },
-                    { session }
-                  ),
-                  i.update({
-                    content: duel_text,
-                    embeds: [embed],
-                    components: [row],
-                    ephemeral: true
-                  })
-                ]);
-              } else {
-                loser.gold -= earnedGold;
-                await Promise.all([
-                  winner.save({ session }),
-                  loser.save({ session }),
-                  Duel.deleteMany(
-                    {
-                      discord_id: { $in: [winner.discord_id, loser.discord_id] }
-                    },
-                    { session }
-                  ),
-                  i.update({
-                    content: duel_text,
-                    embeds: [embed],
-                    components: [row],
-                    ephemeral: true
-                  })
-                ]);
-              }
-              const channel = await getChannel(rooms.feed);
-              if (channel) {
-                await Promise.all([
-                  User.findOneAndUpdate(
-                    { discord_id: i.user.id, energy_points: { $gt: 0 } },
-                    { $inc: { energy_points: -1 } },
-                    { session }
-                  ),
-                  channel.send(duel_text)
-                ]);
-              } else {
-                await User.findOneAndUpdate(
-                  { discord_id: i.user.id, energy_points: { $gt: 0 } },
-                  { $inc: { energy_points: -1 } },
-                  { session }
-                );
-              }
+              await startDuel(session, user, i, embed, row);
             } else if (i.customId === 'random_encounter') {
               if (user.energy_points <= 0) {
                 embed = createEmbed(user);
@@ -747,7 +757,7 @@ module.exports = {
                         .trim();
                       const armor_name = Object.values(armors).find(
                         (a) => a.name.toUpperCase() === armor.toUpperCase()
-                      ).name;
+                      )?.name;
                       if (!armor_name) {
                         // prettier-ignore
                         throw new Error('Armor couldn\'t find');
@@ -768,7 +778,7 @@ module.exports = {
                         .trim();
                       const weapon_name = Object.values(weapons).find(
                         (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                      ).name;
+                      )?.name;
                       if (!weapon_name) {
                         // prettier-ignore
                         throw new Error('Weapon couldn\'t find');
@@ -854,7 +864,7 @@ module.exports = {
                         .trim();
                       const armor_name = Object.values(armors).find(
                         (a) => a.name.toUpperCase() === armor.toUpperCase()
-                      ).name;
+                      )?.name;
                       if (!armor_name) {
                         // prettier-ignore
                         throw new Error('Armor couldn\'t find');
@@ -875,7 +885,7 @@ module.exports = {
                         .replaceAll('\n', '');
                       const weapon_name = Object.values(weapons).find(
                         (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                      ).name;
+                      )?.name;
                       if (!weapon_name) {
                         // prettier-ignore
                         throw new Error('Weapon couldn\'t find');
@@ -897,9 +907,10 @@ module.exports = {
                         .replace('(armor)', '')
                         .replaceAll('\n', '')
                         .trim();
+                      console.log(armor, armor.length);
                       const armor_name = Object.values(armors).find(
                         (a) => a.name.toUpperCase() === armor.toUpperCase()
-                      ).name;
+                      )?.name;
                       if (!armor_name) {
                         // prettier-ignore
                         throw new Error('Armor couldn\'t find');
@@ -921,7 +932,7 @@ module.exports = {
                         .trim();
                       const weapon_name = Object.values(weapons).find(
                         (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                      ).name;
+                      )?.name;
                       if (!weapon_name) {
                         // prettier-ignore
                         throw new Error('Weapon couldn\'t find');
@@ -946,50 +957,87 @@ module.exports = {
                     `${feedWithoutOutcome}\n${outcomesFeed.join('')}`
                   );
                 }
-                await Promise.all([
-                  i.update({
-                    embeds: [
-                      new EmbedBuilder().setDescription(
-                        `${italic(random.scenario)}\n\n${
-                          random.bits
-                        }\n\n${outcomesPrivate.join('')}`
-                      )
-                    ],
-                    ephemeral: true
-                  }),
-                  user.save({ session })
-                ]);
-              } else if (random_number >= 45 && random_number <= 49) {
-                if (channel) {
-                  const feedWithoutOutcome = random.feed.replaceAll(
-                    '@xxx',
-                    userMention(user.discord_id)
-                  );
-                  await channel.send(feedWithoutOutcome);
-                  await Promise.all([
-                    channel.send(feedWithoutOutcome),
-                    i.update({
+                await i.update({
+                  embeds: [
+                    new EmbedBuilder().setDescription(
+                      `${italic(random.scenario)}\n\n${
+                        random.bits
+                      }\n\n${outcomesPrivate.join('')}`
+                    )
+                  ],
+                  ephemeral: true
+                });
+              } else {
+                const isThereOtherPlayer = await Duel.findOne(
+                  {
+                    discord_id: { $ne: i.user.id }
+                  },
+                  { session }
+                ).sort({ doc_created_at: 1 });
+                if (
+                  (random_number >= 45 && random_number <= 49) ||
+                  !isThereOtherPlayer
+                ) {
+                  if (channel) {
+                    const feedWithoutOutcome = random.feed.replaceAll(
+                      '@xxx',
+                      userMention(user.discord_id)
+                    );
+                    await channel.send(feedWithoutOutcome);
+                    await Promise.all([
+                      channel.send(feedWithoutOutcome),
+                      i.update({
+                        embeds: [
+                          new EmbedBuilder().setDescription(
+                            `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                          )
+                        ],
+                        ephemeral: true
+                      })
+                    ]);
+                  } else {
+                    await i.update({
                       embeds: [
                         new EmbedBuilder().setDescription(
                           `${italic(random.scenario)}\n\n${random.bits}\n\n`
                         )
                       ],
                       ephemeral: true
-                    })
-                  ]);
-                } else {
-                  await i.update({
-                    embeds: [
-                      new EmbedBuilder().setDescription(
-                        `${italic(random.scenario)}\n\n${random.bits}\n\n`
-                      )
-                    ],
-                    ephemeral: true
-                  });
+                    });
+                  }
+                } else if (random_number >= 50) {
+                  console.log('Battle encounter');
+                  await startDuel(session, user, i, embed, row, true);
+                  if (channel) {
+                    const feedWithoutOutcome = random.feed.replaceAll(
+                      '@xxx',
+                      userMention(user.discord_id)
+                    );
+                    await channel.send(feedWithoutOutcome);
+                    await Promise.all([
+                      channel.send(feedWithoutOutcome),
+                      i.update({
+                        embeds: [
+                          new EmbedBuilder().setDescription(
+                            `${italic(random.scenario)}\n\n`
+                          )
+                        ],
+                        ephemeral: true
+                      })
+                    ]);
+                  } else {
+                    await i.update({
+                      embeds: [
+                        new EmbedBuilder().setDescription(
+                          `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                        )
+                      ],
+                      ephemeral: true
+                    });
+                  }
                 }
-              } else if (random_number >= 50) {
-                console.log('Battle encounter');
               }
+              await user.save({ session });
             } else if (i.customId === 'shop') {
               try {
                 await i.update({
