@@ -156,25 +156,25 @@ const armors = {
     name: 'Titanium Plating',
     description: 'Titanium Plating',
     dmg_migration: 0.2,
-    cost: 150
+    cost: 125
   },
   'Positron Energy Barrier': {
     name: 'Positron Energy Barrier',
     description: 'Positron Energy Barrier',
     dmg_migration: 0.3,
-    cost: 350
+    cost: 200
   },
   'Quantum Armor': {
     name: 'Quantum Armor',
     description: 'Quantum Armor',
     dmg_migration: 0.4,
-    cost: 750
+    cost: 350
   },
   'Gravitational Absorber': {
     name: 'Gravitational Absorber',
     description: 'Gravitational Absorber',
     dmg_migration: 0.5,
-    cost: 1000
+    cost: 500
   }
 };
 
@@ -236,6 +236,7 @@ const duel_texts = [
 const BASE_DAMAGE = 5;
 const BASE_ATTACK_POWER = 2;
 const BASE_ENERGY_POINTS = 6;
+const STARTER_GOLD = 130;
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -264,6 +265,7 @@ module.exports = {
   BASE_DAMAGE,
   BASE_ENERGY_POINTS,
   BASE_ATTACK_POWER,
+  STARTER_GOLD,
   rooms,
   roles,
   duel_texts,

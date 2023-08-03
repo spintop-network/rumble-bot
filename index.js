@@ -11,7 +11,8 @@ const {
   rooms,
   roles,
   BASE_ENERGY_POINTS,
-  BASE_ATTACK_POWER
+  BASE_ATTACK_POWER,
+  STARTER_GOLD
 } = require('./constants');
 
 dotenv.config();
@@ -81,7 +82,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             health_points: 100,
             attack_power: BASE_ATTACK_POWER,
             energy_points: BASE_ENERGY_POINTS,
-            gold: 100,
+            gold: STARTER_GOLD,
             health_potion_cost: 50,
             weapon: null,
             armor: null

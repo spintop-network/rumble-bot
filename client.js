@@ -58,6 +58,7 @@ client.once(Events.ClientReady, async (c) => {
       '“But BITS, everything sounds suspiciously awesome. Isn’t there a catch?” There is, of course. In the artificial dimension I’ve created, each action you take will cost an Energy Point (EP), and you have 6 of them. You have to wait 4 hours for an Energy Point to regenerate. I had to implement this energy system because otherwise, there would be vast amounts of glitches all over the artificial dimension, and to be honest; I don’t want to ruin what I’ve created just to be able to entertain you. Deal with it, and use your Energy Points wisely.'
   );
 
+  // prettier-ignore
   const rulesEmbed2 = new EmbedBuilder()
     .setTitle('' + 'Rules, Numbers, and Terminology:')
     .setDescription(
@@ -67,7 +68,7 @@ client.once(Events.ClientReady, async (c) => {
         ' Health point. You start with 100 HP, but if it reaches 0, you’re (your Cobot, to be more precise) gone.\n' +
         '\n' +
         bold(':diamond_shape_with_a_dot_inside: EP:') +
-        'Energy point. Your actions depend on the energy points you have. In total, you have 6 energy points. Unlike visiting the Armory, Battle and Random Encounters cost you an EP each. An EP regenerates every 4 hours. If you have 6/6 EP and not taking any action, such as Battle or Random Encounters, you’ll lose 5 HP for every inactive 4-hour cycle.' +
+        'Energy point. Your actions depend on the energy points you have. In total, you have 6 energy points. Unlike visiting the Armory, Battle and Random Encounters cost you an EP each. An EP regenerates every 4 hours, and in addition to an EP, you\'ll receive 10 Credits every 4 hours. If you have 6/6 EP and not taking any action, such as Battle or Random Encounters, you’ll lose 5 HP for every inactive 4-hour cycle.' +
         '\n' +
         bold(':diamond_shape_with_a_dot_inside: AP:') +
         ' Attack power. Your attack power is 2 as default; however, you can increase this by buying or earning weapons.\n' +
