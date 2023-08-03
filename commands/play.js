@@ -1146,7 +1146,6 @@ module.exports = {
                       '@xxx',
                       userMention(user.discord_id)
                     );
-                    await channel.send(feedWithMention);
                     await Promise.all([
                       channel.send(feedWithMention),
                       i.update({
