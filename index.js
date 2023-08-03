@@ -7,7 +7,12 @@ const dotenv = require('dotenv');
 const { client } = require('./client.js');
 const User = require('./models/user');
 const Notification = require('./models/notification');
-const { rooms, roles } = require('./constants');
+const {
+  rooms,
+  roles,
+  BASE_ENERGY_POINTS,
+  BASE_ATTACK_POWER
+} = require('./constants');
 
 dotenv.config();
 mongoose.connect(process.env.MONGODB_URI);
@@ -74,8 +79,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const newUser = new User({
             discord_id: interaction.user.id,
             health_points: 100,
-            attack_power: 2,
-            energy_points: 3,
+            attack_power: BASE_ATTACK_POWER,
+            energy_points: BASE_ENERGY_POINTS,
             gold: 100,
             health_potion_cost: 50,
             weapon: null,

@@ -24,20 +24,26 @@ const {
   weapon_texts,
   BASE_DAMAGE,
   armors,
-  weapons
+  weapons,
+  BASE_ATTACK_POWER,
+  BASE_ENERGY_POINTS,
+  randoms
 } = require('../constants');
 const { client } = require('../client');
-const { randoms } = require('../constants');
 
 const createEmbed = (user) => {
   return new EmbedBuilder().setTitle('Welcome to the game!').addFields(
     {
-      name: 'Health Points',
+      name: 'HP',
       value: `${user.health_points}/100`,
       inline: true
     },
-    { name: 'Attack Power', value: `${user.attack_power}`, inline: true },
-    { name: 'Energy Points', value: `${user.energy_points}/3`, inline: true },
+    { name: 'AP', value: `${user.attack_power}`, inline: true },
+    {
+      name: 'EP',
+      value: `${user.energy_points}/${BASE_ENERGY_POINTS}`,
+      inline: true
+    },
     {
       name: '<:zpintop:1129374515365945364> Credit',
       value: `${user.gold}`,
@@ -59,17 +65,23 @@ const createNotificationEmbed = (title, description) =>
 const createShopEmbed = (user) => {
   const weapons_shop = Object.values(weapons).map((weapon) => ({
     name: weapon.name,
-    value: `Attack Power:${weapon.attack_power} Cost:${weapon.cost}`,
+    value: `AP:${weapon.attack_power} Cost:${weapon.cost}`,
     inline: true
   }));
   const armors_shop = Object.values(armors).map((armor) => ({
     name: armor.name,
-    value: `Damage Migration:${armor.dmg_migration} Cost:${armor.cost}`,
+    value: `Damage Mitigation:${armor.dmg_migration} Cost:${armor.cost}`,
     inline: true
   }));
   return new EmbedBuilder()
     .setTitle('ARMORY')
-    .setDescription('We have precious items!\n\n')
+    .setDescription(
+      `We have precious items!\n
+      Your have ${bold(user.gold)} credits.\n
+      You can sell your items here for ${bold(
+        'half of the price'
+      )} you bought them for.\n`
+    )
     .addFields(
       {
         name: 'Repair Kit',
@@ -143,22 +155,34 @@ const createRow = (custom_ids = ['status']) => {
     weapon_list: {
       customId: 'weapon_list',
       placeholder: 'Select a weapon',
-      items: Object.entries(weapons).map(([key, value]) =>
+      items: [
         new StringSelectMenuOptionBuilder()
-          .setLabel(value.name)
-          .setDescription(value.description)
-          .setValue(key)
-      )
+          .setLabel('Go Back')
+          .setDescription('Go back to the previous menu')
+          .setValue('weapon_go_back'),
+        ...Object.entries(weapons).map(([key, value]) =>
+          new StringSelectMenuOptionBuilder()
+            .setLabel(value.name)
+            .setDescription(value.description)
+            .setValue(key)
+        )
+      ]
     },
     armor_list: {
       customId: 'armor_list',
       placeholder: 'Select an armor',
-      items: Object.entries(armors).map(([key, value]) =>
+      items: [
         new StringSelectMenuOptionBuilder()
-          .setLabel(value.name)
-          .setDescription(value.description)
-          .setValue(key)
-      )
+          .setLabel('Go Back')
+          .setDescription('Go back to the previous menu')
+          .setValue('armor_go_back'),
+        ...Object.entries(armors).map(([key, value]) =>
+          new StringSelectMenuOptionBuilder()
+            .setLabel(value.name)
+            .setDescription(value.description)
+            .setValue(key)
+        )
+      ]
     }
   };
 
@@ -309,11 +333,17 @@ const startDuel = async (
   }
   const winner = playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
   const loser = playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
+  const winnerRoll =
+    winner.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
+  const loserRoll =
+    loser.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
   const damageFloat =
     BASE_DAMAGE +
     Math.abs(playerDamage - otherPlayerDamage) *
       (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)) *
       10;
+  const lostHealth =
+    loser.health_points - Math.round(loser.health_points - damageFloat);
   loser.health_points = Math.round(loser.health_points - damageFloat);
   await loser.save({ session });
   const isLoserDead = loser.health_points <= 0;
@@ -346,11 +376,9 @@ const startDuel = async (
   duel_text = isLoserDead
     ? `${armory_text}\n${duel_text}`
     : `${duel_text}\n${armory_text}`;
-  // TODO: Add lost HP and lost gold to the duel text.
-  // duel_text += `\n @kaybeden lost `
-  duel_text = duel_text
-    .replaceAll('@kazanan', userMention(winner.discord_id))
-    .replaceAll('@kaybeden', userMention(loser.discord_id));
+  duel_text += `\n\n @kazanan rolled ${
+    Math.floor(winnerRoll * 100) + 1
+  }/100 and @kaybeden rolled ${Math.floor(loserRoll * 100) + 1}/100.`;
   const earnedGold = isLoserDead
     ? Math.floor(
         loser.gold +
@@ -358,6 +386,10 @@ const startDuel = async (
           (loser.weapon ? weapons[loser.weapon].cost : 0)
       )
     : Math.floor(loser.gold / 2);
+  duel_text += `\n\n @kaybeden has lost ${earnedGold} credits and ${lostHealth} HP.`;
+  duel_text = duel_text
+    .replaceAll('@kazanan', userMention(winner.discord_id))
+    .replaceAll('@kaybeden', userMention(loser.discord_id));
   winner.gold += earnedGold;
 
   if (isLoserDead) {
@@ -498,7 +530,13 @@ module.exports = {
             }
             if (i.customId === 'weapon_list') {
               const weapon = weapons[i.values[0]];
-              if (user.gold < weapon.cost) {
+              if (i.values[0] === 'weapon_go_back') {
+                await i.update({
+                  embeds: [createShopEmbed(user)],
+                  components: [extraRows.buying],
+                  ephemeral: true
+                });
+              } else if (user.gold < weapon.cost) {
                 await i.update({
                   embeds: [
                     createNotificationEmbed(
@@ -513,7 +551,7 @@ module.exports = {
               } else {
                 user.gold -= weapon.cost;
                 user.weapon = weapon.name;
-                user.attack_power += weapon.attack_power;
+                user.attack_power = BASE_ATTACK_POWER + weapon.attack_power;
                 await user.save({ session });
                 await i.update({
                   embeds: [
@@ -529,7 +567,13 @@ module.exports = {
               }
             } else if (i.customId === 'armor_list') {
               const armor = armors[i.values[0]];
-              if (user.gold < armor.cost) {
+              if (i.values[0] === 'armor_go_back') {
+                await i.update({
+                  embeds: [createShopEmbed(user)],
+                  components: [extraRows.buying],
+                  ephemeral: true
+                });
+              } else if (user.gold < armor.cost) {
                 await i.update({
                   embeds: [
                     createNotificationEmbed(
@@ -643,16 +687,20 @@ module.exports = {
                   if (out.includes('lost')) {
                     if (out.includes('hp')) {
                       const lost_hp = out.split(' ')[1].trim();
+                      const lost_hp_capped = Math.min(
+                        parseInt(lost_hp),
+                        user.health_points
+                      );
                       user.health_points -= parseInt(lost_hp);
                       const eliminated_text =
                         user.health_points <= 0 ? ' and eliminated' : '';
                       outcomesPrivate.push(
-                        `You have lost ${lost_hp} health points${eliminated_text}.\n`
+                        `You have lost ${lost_hp_capped} health points${eliminated_text}.\n`
                       );
                       outcomesFeed.push(
                         `${userMention(
                           user.discord_id
-                        )} has lost ${lost_hp} health points${eliminated_text}.\n`
+                        )} has lost ${lost_hp_capped} health points${eliminated_text}.\n`
                       );
                     } else if (out.includes('an ep')) {
                       user.energy_points = Math.max(0, user.energy_points - 1);
@@ -684,18 +732,24 @@ module.exports = {
                       );
                     } else if (out.includes('credits')) {
                       const lost_credits = out.split(' ')[1];
+                      const lost_credits_capped = Math.min(
+                        parseInt(lost_credits),
+                        user.gold
+                      );
                       user.gold = Math.max(
                         0,
                         user.gold - parseInt(lost_credits)
                       );
-                      outcomesPrivate.push(
-                        `You have lost ${lost_credits} credits.\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has lost ${lost_credits} credits.\n`
-                      );
+                      if (lost_credits_capped > 0) {
+                        outcomesPrivate.push(
+                          `You have lost ${lost_credits_capped} credits.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has lost ${lost_credits_capped} credits.\n`
+                        );
+                      }
                     } else if (out.includes('armor')) {
                       if (user.armor) {
                         user.armor = null;
@@ -709,22 +763,29 @@ module.exports = {
                         const split_text_arr = out.split(' ');
                         const lost_credit =
                           split_text_arr[split_text_arr.length - 3];
+                        const lost_credit_capped = Math.min(
+                          parseInt(lost_credit),
+                          user.gold
+                        );
                         user.gold = Math.max(
                           0,
                           user.gold - parseInt(lost_credit)
                         );
-                        outcomesPrivate.push(
-                          `You have lost ${lost_credit} credits because you don't have an armor.\n`
-                        );
-                        outcomesFeed.push(
-                          `${userMention(
-                            user.discord_id
-                          )} has lost ${lost_credit} credits because they don't have an armor.\n`
-                        );
+                        if (lost_credit_capped) {
+                          outcomesPrivate.push(
+                            `You have lost ${lost_credit_capped} credits because you don't have an armor.\n`
+                          );
+                          outcomesFeed.push(
+                            `${userMention(
+                              user.discord_id
+                            )} has lost ${lost_credit_capped} credits because they don't have an armor.\n`
+                          );
+                        }
                       }
                     } else if (out.includes('weapon')) {
                       if (user.weapon) {
                         user.weapon = null;
+                        user.attack_power = BASE_ATTACK_POWER;
                         outcomesPrivate.push('You have lost your weapon.\n');
                         outcomesFeed.push(
                           `${userMention(
@@ -735,18 +796,24 @@ module.exports = {
                         const split_text_arr = out.split(' ');
                         const lost_credit =
                           split_text_arr[split_text_arr.length - 3];
+                        const lost_credit_capped = Math.min(
+                          parseInt(lost_credit),
+                          user.gold
+                        );
                         user.gold = Math.max(
                           0,
                           user.gold - parseInt(lost_credit)
                         );
-                        outcomesPrivate.push(
-                          `You have lost ${lost_credit} credits because you don't have a weapon.\n`
-                        );
-                        outcomesFeed.push(
-                          `${userMention(
-                            user.discord_id
-                          )} has lost ${lost_credit} credits because they don't have a weapon.\n`
-                        );
+                        if (lost_credit_capped) {
+                          outcomesPrivate.push(
+                            `You have lost ${lost_credit_capped} credits because you don't have a weapon.\n`
+                          );
+                          outcomesFeed.push(
+                            `${userMention(
+                              user.discord_id
+                            )} has lost ${lost_credit_capped} credits because they don't have a weapon.\n`
+                          );
+                        }
                       }
                     }
                   } else if (out.includes('replaced')) {
@@ -772,25 +839,27 @@ module.exports = {
                         )}’s armor has been replaced by a ${armor}.\n`
                       );
                     } else if (out.includes('weapon')) {
-                      const weapon = out
+                      const weapon_str = out
                         .split('replaced by a ')[1]
                         .replaceAll('\n', '')
                         .trim();
-                      const weapon_name = Object.values(weapons).find(
-                        (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                      )?.name;
-                      if (!weapon_name) {
+                      const weapon = Object.values(weapons).find(
+                        (a) => a.name.toUpperCase() === weapon_str.toUpperCase()
+                      );
+                      if (!weapon) {
                         // prettier-ignore
                         throw new Error('Weapon couldn\'t find');
                       }
-                      user.weapon = weapon_name;
+                      user.weapon = weapon.name;
+                      user.attack_power =
+                        BASE_ATTACK_POWER + weapon.attack_power;
                       outcomesPrivate.push(
-                        `Your weapon has been replaced by a ${weapon}.\n`
+                        `Your weapon has been replaced by a ${weapon_str}.\n`
                       );
                       outcomesFeed.push(
                         `${userMention(
                           user.discord_id
-                        )}’s weapon has been replaced by a ${weapon}.\n`
+                        )}’s weapon has been replaced by a ${weapon_str}.\n`
                       );
                     }
                   } else if (out.includes('eliminated')) {
@@ -815,7 +884,10 @@ module.exports = {
                     );
                   } else if (out.includes('gained') && out.includes('hp')) {
                     const gained_hp = out.split(' ')[1].trim();
-                    user.health_points += parseInt(gained_hp);
+                    user.health_points = Math.min(
+                      user.health_points + parseInt(gained_hp),
+                      100
+                    );
                     outcomesPrivate.push(
                       `You have gained ${gained_hp} health points.\n`
                     );
@@ -826,7 +898,10 @@ module.exports = {
                     );
                   } else if (out.includes('regenerated')) {
                     if (out.includes('an ep')) {
-                      user.energy_points += 1;
+                      user.energy_points = Math.min(
+                        user.energy_points + 1,
+                        BASE_ENERGY_POINTS
+                      );
                       outcomesPrivate.push(
                         'You have regenerated an energy point.\n'
                       );
@@ -836,7 +911,10 @@ module.exports = {
                         )} has regenerated an energy point.\n`
                       );
                     } else if (out.includes('two eps')) {
-                      user.energy_points += 2;
+                      user.energy_points = Math.min(
+                        user.energy_points + 2,
+                        BASE_ENERGY_POINTS
+                      );
                       outcomesPrivate.push(
                         'You have regenerated two energy points.\n'
                       );
@@ -846,7 +924,10 @@ module.exports = {
                         )} has regenerated two energy points.\n`
                       );
                     } else if (out.includes('all eps')) {
-                      user.energy_points = 3;
+                      user.energy_points = Math.min(
+                        user.energy_points + 3,
+                        BASE_ENERGY_POINTS
+                      );
                       outcomesPrivate.push(
                         'You have regenerated all energy points.\n'
                       );
@@ -858,94 +939,146 @@ module.exports = {
                     }
                   } else if (out.includes('upgraded')) {
                     if (out.includes('armor')) {
-                      const armor = out
+                      const armor_str = out
                         .replace('upgraded your armor to ', '')
                         .replaceAll('\n', '')
                         .trim();
-                      const armor_name = Object.values(armors).find(
-                        (a) => a.name.toUpperCase() === armor.toUpperCase()
-                      )?.name;
-                      if (!armor_name) {
+                      const armor = Object.values(armors).find(
+                        (a) => a.name.toUpperCase() === armor_str.toUpperCase()
+                      );
+                      if (!armor) {
                         // prettier-ignore
                         throw new Error('Armor couldn\'t find');
                       }
-                      user.armor = armor_name;
-                      outcomesPrivate.push(
-                        `Your armor has been upgraded to ${armor}.\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )}’s armor has been upgraded to ${armor}.\n`
-                      );
+                      if (user.armor === armor.name) {
+                        user.gold += armor.cost;
+                        outcomesPrivate.push(
+                          `You have found ${armor.name} and sold it for ${armor.cost} credits.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(user.discord_id)} has found ${
+                            armor.name
+                          } and sold it for ${armor.cost} credits.\n`
+                        );
+                      } else {
+                        user.armor = armor.name;
+                        outcomesPrivate.push(
+                          `Your armor has been upgraded to ${armor_str}.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )}’s armor has been upgraded to ${armor_str}.\n`
+                        );
+                      }
                     } else if (out.includes('weapon')) {
-                      const weapon = out
+                      const weapon_str = out
                         .replace('upgraded your weapon to ', '')
                         .trim()
                         .replaceAll('\n', '');
-                      const weapon_name = Object.values(weapons).find(
-                        (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                      )?.name;
-                      if (!weapon_name) {
+                      const weapon = Object.values(weapons).find(
+                        (a) => a.name.toUpperCase() === weapon_str.toUpperCase()
+                      );
+                      if (!weapon) {
                         // prettier-ignore
                         throw new Error('Weapon couldn\'t find');
                       }
-                      user.weapon = weapon_name;
-                      outcomesPrivate.push(
-                        `Your weapon has been upgraded to ${weapon}.\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )}’s weapon has been upgraded to ${weapon}.\n`
-                      );
+                      if (user.weapon === weapon.name) {
+                        user.gold += weapon.cost;
+                        outcomesPrivate.push(
+                          `You have found ${weapon.name} and sold it for ${weapon.cost} credits.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(user.discord_id)} has found ${
+                            weapon.name
+                          } and sold it for ${weapon.cost} credits.\n`
+                        );
+                      } else {
+                        user.weapon = weapon.name;
+                        user.attack_power =
+                          BASE_ATTACK_POWER + weapon.attack_power;
+                        outcomesPrivate.push(
+                          `Your weapon has been upgraded to ${weapon_str}.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )}’s weapon has been upgraded to ${weapon_str}.\n`
+                        );
+                      }
                     }
                   } else if (out.includes('acquired')) {
                     if (out.includes('armor')) {
-                      const armor = out
-                        .replace('acquired ', '')
+                      const armor_str = out
+                        .replace('-acquired ', '')
                         .replace('(armor)', '')
                         .replaceAll('\n', '')
                         .trim();
-                      console.log(armor, armor.length);
-                      const armor_name = Object.values(armors).find(
-                        (a) => a.name.toUpperCase() === armor.toUpperCase()
-                      )?.name;
-                      if (!armor_name) {
+                      console.log(armor_str, armor_str.length);
+                      const armor = Object.values(armors).find(
+                        (a) => a.name.toUpperCase() === armor_str.toUpperCase()
+                      );
+                      if (!armor) {
                         // prettier-ignore
                         throw new Error('Armor couldn\'t find');
                       }
-                      user.armor = armor_name;
-                      outcomesPrivate.push(
-                        `You have acquired ${armor} (armor).\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has acquired ${armor} (armor).\n`
-                      );
+                      if (user.armor === armor.name) {
+                        user.gold += armor.cost;
+                        outcomesPrivate.push(
+                          `You have acquired ${armor.name} (armor) and sold it for ${armor.cost} credits.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(user.discord_id)} has acquired ${
+                            armor.name
+                          } (armor) and sold it for ${armor.cost} credits.\n`
+                        );
+                      } else {
+                        user.armor = armor.name;
+                        outcomesPrivate.push(
+                          `You have acquired ${armor_str} (armor).\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has acquired ${armor_str} (armor).\n`
+                        );
+                      }
                     } else if (out.includes('weapon')) {
-                      const weapon = out
-                        .replace('acquired ', '')
+                      const weapon_str = out
+                        .replace('-acquired ', '')
                         .replace('(weapon)', '')
                         .replaceAll('\n', '')
                         .trim();
-                      const weapon_name = Object.values(weapons).find(
-                        (a) => a.name.toUpperCase() === weapon.toUpperCase()
-                      )?.name;
-                      if (!weapon_name) {
+                      const weapon = Object.values(weapons).find(
+                        (a) => a.name.toUpperCase() === weapon_str.toUpperCase()
+                      );
+                      if (!weapon) {
                         // prettier-ignore
                         throw new Error('Weapon couldn\'t find');
                       }
-                      user.weapon = weapon_name;
-                      outcomesPrivate.push(
-                        `You have acquired ${weapon} (weapon).\n`
-                      );
-                      outcomesFeed.push(
-                        `${userMention(
-                          user.discord_id
-                        )} has acquired ${weapon} (weapon).\n`
-                      );
+                      if (user.weapon === weapon.name) {
+                        user.gold += weapon.cost;
+                        outcomesPrivate.push(
+                          `You have acquired ${weapon.name} (weapon) and sold it for ${weapon.cost} credits.\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(user.discord_id)} has acquired ${
+                            weapon.name
+                          } (weapon) and sold it for ${weapon.cost} credits.\n`
+                        );
+                      } else {
+                        user.weapon = weapon.name;
+                        user.attack_power =
+                          BASE_ATTACK_POWER + weapon.attack_power;
+                        outcomesPrivate.push(
+                          `You have acquired ${weapon_str} (weapon).\n`
+                        );
+                        outcomesFeed.push(
+                          `${userMention(
+                            user.discord_id
+                          )} has acquired ${weapon_str} (weapon).\n`
+                        );
+                      }
                     }
                   }
                 });
@@ -972,6 +1105,7 @@ module.exports = {
                   {
                     discord_id: { $ne: i.user.id }
                   },
+                  null,
                   { session }
                 ).sort({ doc_created_at: 1 });
                 if (
@@ -983,7 +1117,6 @@ module.exports = {
                       '@xxx',
                       userMention(user.discord_id)
                     );
-                    await channel.send(feedWithoutOutcome);
                     await Promise.all([
                       channel.send(feedWithoutOutcome),
                       i.update({
@@ -1009,13 +1142,13 @@ module.exports = {
                   console.log('Battle encounter');
                   await startDuel(session, user, i, embed, row, true);
                   if (channel) {
-                    const feedWithoutOutcome = random.feed.replaceAll(
+                    const feedWithMention = random.feed.replaceAll(
                       '@xxx',
                       userMention(user.discord_id)
                     );
-                    await channel.send(feedWithoutOutcome);
+                    await channel.send(feedWithMention);
                     await Promise.all([
-                      channel.send(feedWithoutOutcome),
+                      channel.send(feedWithMention),
                       i.update({
                         embeds: [
                           new EmbedBuilder().setDescription(
@@ -1029,7 +1162,7 @@ module.exports = {
                     await i.update({
                       embeds: [
                         new EmbedBuilder().setDescription(
-                          `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                          `${italic(random.scenario)}\n\n`
                         )
                       ],
                       ephemeral: true
@@ -1132,7 +1265,7 @@ module.exports = {
               );
               user.gold += Math.floor(weapon.cost / 2);
               user.weapon = null;
-              user.attack_power -= weapon.attack_power;
+              user.attack_power = BASE_ATTACK_POWER;
               await user.save({ session });
               await i.update({
                 embeds: [

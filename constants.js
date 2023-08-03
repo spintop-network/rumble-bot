@@ -234,6 +234,8 @@ const duel_texts = [
 ];
 
 const BASE_DAMAGE = 5;
+const BASE_ATTACK_POWER = 2;
+const BASE_ENERGY_POINTS = 6;
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -260,6 +262,8 @@ module.exports = {
   weapons,
   armors,
   BASE_DAMAGE,
+  BASE_ENERGY_POINTS,
+  BASE_ATTACK_POWER,
   rooms,
   roles,
   duel_texts,
