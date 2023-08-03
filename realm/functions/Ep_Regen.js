@@ -23,7 +23,7 @@ exports = async () => {
       const will_die_users = await usersCollection
         .find(
           {
-            energy_points: 3,
+            energy_points: 6,
             $and: [
               { health_points: { $lte: 10 } },
               { health_points: { $gt: 0 } }
@@ -47,13 +47,13 @@ exports = async () => {
         await deaths.insertMany(bulkOperations, { session, ordered: false });
       }
 
-      usersCollection.updateMany(
-        { energy_points: 3, health_points: { $gt: 0 } },
+      await usersCollection.updateMany(
+        { energy_points: 6, health_points: { $gt: 0 } },
         { $inc: { health_points: -10 } },
         { session }
       );
-      usersCollection.updateMany(
-        { energy_points: { $lt: 3 } },
+      await usersCollection.updateMany(
+        { energy_points: { $lt: 6 } },
         { $inc: { energy_points: 1 } },
         { session }
       );
