@@ -234,11 +234,11 @@ const duel_texts = [
     getting_damage:
       '"@kaybeden’s Cobot gives hundreds of system malfunction warnings. It can’t even stand still, shaking from its legs to the head. It looks like it is the end of the road. @kazanan is victorious! \n' +
       '\n' +
-      '@kaybeden is ELIMINATED!"',
+      '@kaybeden is ELIMINATED!',
     damaging:
       '"@kazanan’s attack was so powerful and devastating that the entire Cobot\'s Steam Arena (sponsored by BITS Artificial Services) has felt the impact! \n' +
       '\n' +
-      '@kaybeden is ELIMINATED!"'
+      '@kaybeden is ELIMINATED!'
   }
 ];
 

@@ -88,7 +88,7 @@ const createShopEmbed = (user) => {
   }));
   const armors_shop = Object.values(armors).map((armor) => ({
     name: armor.emoji ? `${armor.emoji} ${armor.name}` : armor.name,
-    value: `Damage Mitigation:${armor.dmg_migration} Cost:${armor.cost}`,
+    value: `DMG:${armor.dmg_migration} Cost:${armor.cost}`,
     inline: true
   }));
   return new EmbedBuilder()
@@ -743,10 +743,13 @@ module.exports = {
               const channel =
                 (await client.channels.cache.get(rooms.feed)) ||
                 (await client.channels.fetch(rooms.feed));
+
               if (random_number >= 0 && random_number <= 44) {
                 const outcomes = random.outcome.split(',');
                 const outcomesPrivate = [];
                 const outcomesFeed = [];
+                const outcomesPrivateZero = [];
+                const outcomesFeedZero = [];
                 outcomes.forEach((outcome) => {
                   const out = outcome.trim().toLowerCase();
                   console.log(out);
@@ -761,38 +764,48 @@ module.exports = {
                       const eliminated_text =
                         user.health_points <= 0 ? ' and eliminated' : '';
                       outcomesPrivate.push(
-                        `You have lost ${lost_hp_capped} health points${eliminated_text}.\n`
+                        `${
+                          eliminated_text.length > 0
+                            ? ':skull:'
+                            : ':anatomical_heart:'
+                        } You have lost ${lost_hp_capped} health points${eliminated_text}.\n`
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `${
+                          eliminated_text.length > 0
+                            ? ':skull:'
+                            : ':anatomical_heart:'
+                        } ${userMention(
                           user.discord_id
                         )} has lost ${lost_hp_capped} health points${eliminated_text}.\n`
                       );
                     } else if (out.includes('an ep')) {
                       user.energy_points = Math.max(0, user.energy_points - 1);
-                      outcomesPrivate.push('You have lost an energy point.\n');
+                      outcomesPrivate.push(
+                        ':zap: You have lost an energy point.\n'
+                      );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:zap: ${userMention(
                           user.discord_id
                         )} has lost an energy point.\n`
                       );
                     } else if (out.includes('all ep')) {
                       user.energy_points = 0;
                       outcomesPrivate.push(
-                        'You have lost all energy points.\n'
+                        ':zap: You have lost all energy points.\n'
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:zap: ${userMention(
                           user.discord_id
                         )} has lost all energy points.\n`
                       );
                     } else if (out.includes('two eps')) {
                       user.energy_points = Math.max(0, user.energy_points - 2);
                       outcomesPrivate.push(
-                        'You have lost two energy points.\n'
+                        ':zap: You have lost two energy points.\n'
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:zap: ${userMention(
                           user.discord_id
                         )} has lost two energy points.\n`
                       );
@@ -806,14 +819,23 @@ module.exports = {
                         0,
                         user.gold - parseInt(lost_credits)
                       );
-                      if (lost_credits_capped > 0) {
-                        outcomesPrivate.push(
-                          `You have lost ${lost_credits_capped} credits.\n`
+                      outcomesPrivate.push(
+                        `:coin: You have lost ${lost_credits} credits.\n`
+                      );
+                      outcomesFeed.push(
+                        `:coin: ${userMention(
+                          user.discord_id
+                        )} has lost ${lost_credits} credits.\n`
+                      );
+                      if (lost_credits_capped === 0) {
+                        // prettier-ignore
+                        outcomesPrivateZero.push(
+                          ':exclamation: You have 0 Credits. You can\'t lose what you don\'t have.\n'
                         );
-                        outcomesFeed.push(
-                          `${userMention(
+                        outcomesFeedZero.push(
+                          `:exclamation: ${userMention(
                             user.discord_id
-                          )} has lost ${lost_credits_capped} credits.\n`
+                          )} has 0 Credits. He can't lose what he doesn't have.`
                         );
                       }
                     } else if (out.includes('armor')) {
@@ -821,7 +843,7 @@ module.exports = {
                         user.armor = null;
                         outcomesPrivate.push('You have lost your armor.\n');
                         outcomesFeed.push(
-                          `${userMention(
+                          `:shield: ${userMention(
                             user.discord_id
                           )} has lost their armor.\n`
                         );
@@ -837,14 +859,23 @@ module.exports = {
                           0,
                           user.gold - parseInt(lost_credit)
                         );
-                        if (lost_credit_capped) {
-                          outcomesPrivate.push(
-                            `You have lost ${lost_credit_capped} credits because you don't have an armor.\n`
+                        outcomesPrivate.push(
+                          `:coin: You have lost ${lost_credit} credits because you don't have an armor.\n`
+                        );
+                        outcomesFeed.push(
+                          `:coin: ${userMention(
+                            user.discord_id
+                          )} has lost ${lost_credit} credits because they don't have an armor.\n`
+                        );
+                        if (lost_credit_capped === 0) {
+                          // prettier-ignore
+                          outcomesPrivateZero.push(
+                            ':exclamation: You have 0 Credits. You can\'t lose what you don\'t have.\n'
                           );
-                          outcomesFeed.push(
-                            `${userMention(
+                          outcomesFeedZero.push(
+                            `:exclamation: ${userMention(
                               user.discord_id
-                            )} has lost ${lost_credit_capped} credits because they don't have an armor.\n`
+                            )} has 0 Credits. He can't lose what he doesn't have.`
                           );
                         }
                       }
@@ -852,9 +883,11 @@ module.exports = {
                       if (user.weapon) {
                         user.weapon = null;
                         user.attack_power = BASE_ATTACK_POWER;
-                        outcomesPrivate.push('You have lost your weapon.\n');
+                        outcomesPrivate.push(
+                          ':dagger: You have lost your weapon.\n'
+                        );
                         outcomesFeed.push(
-                          `${userMention(
+                          `:dagger: ${userMention(
                             user.discord_id
                           )} has lost their weapon.\n`
                         );
@@ -870,14 +903,23 @@ module.exports = {
                           0,
                           user.gold - parseInt(lost_credit)
                         );
-                        if (lost_credit_capped) {
-                          outcomesPrivate.push(
-                            `You have lost ${lost_credit_capped} credits because you don't have a weapon.\n`
+                        outcomesPrivate.push(
+                          `:coin: You have lost ${lost_credit_capped} credits because you don't have a weapon.\n`
+                        );
+                        outcomesFeed.push(
+                          `:coin: ${userMention(
+                            user.discord_id
+                          )} has lost ${lost_credit_capped} credits because they don't have a weapon.\n`
+                        );
+                        if (lost_credit_capped === 0) {
+                          // prettier-ignore
+                          outcomesPrivateZero.push(
+                            ':exclamation: You have 0 Credits. You can\'t lose what you don\'t have.\n'
                           );
-                          outcomesFeed.push(
-                            `${userMention(
+                          outcomesFeedZero.push(
+                            `:exclamation: ${userMention(
                               user.discord_id
-                            )} has lost ${lost_credit_capped} credits because they don't have a weapon.\n`
+                            )} has 0 Credits. He can't lose what he doesn't have.`
                           );
                         }
                       }
@@ -897,10 +939,10 @@ module.exports = {
                       }
                       user.armor = armor_name;
                       outcomesPrivate.push(
-                        `Your armor has been replaced by a ${armor}.\n`
+                        `:shield: Your armor has been replaced by a ${armor}.\n`
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:shield: ${userMention(
                           user.discord_id
                         )}’s armor has been replaced by a ${armor}.\n`
                       );
@@ -920,19 +962,21 @@ module.exports = {
                       user.attack_power =
                         BASE_ATTACK_POWER + weapon.attack_power;
                       outcomesPrivate.push(
-                        `Your weapon has been replaced by a ${weapon_str}.\n`
+                        `:dagger: Your weapon has been replaced by a ${weapon_str}.\n`
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:dagger: ${userMention(
                           user.discord_id
                         )}’s weapon has been replaced by a ${weapon_str}.\n`
                       );
                     }
                   } else if (out.includes('eliminated')) {
                     user.health_points = 0;
-                    outcomesPrivate.push('You have been eliminated.\n');
+                    outcomesPrivate.push(':skull: You have been eliminated.\n');
                     outcomesFeed.push(
-                      `${userMention(user.discord_id)} has been eliminated.\n`
+                      `:skull: ${userMention(
+                        user.discord_id
+                      )} has been eliminated.\n`
                     );
                   } else if (
                     out.includes('earned') &&
@@ -941,27 +985,49 @@ module.exports = {
                     const earned_credits = out.split(' ')[1];
                     user.gold += parseInt(earned_credits);
                     outcomesPrivate.push(
-                      `You have earned ${earned_credits} credits.\n`
+                      `:coin: You have earned ${earned_credits} credits.\n`
                     );
                     outcomesFeed.push(
-                      `${userMention(
+                      `:coin: ${userMention(
                         user.discord_id
                       )} has earned ${earned_credits} credits.\n`
                     );
                   } else if (out.includes('gained') && out.includes('hp')) {
                     const gained_hp = out.split(' ')[1].trim();
-                    user.health_points = Math.min(
+                    const new_hp = Math.min(
                       user.health_points + parseInt(gained_hp),
                       100
                     );
-                    outcomesPrivate.push(
-                      `You have gained ${gained_hp} health points.\n`
-                    );
-                    outcomesFeed.push(
-                      `${userMention(
-                        user.discord_id
-                      )} has gained ${gained_hp} health points.\n`
-                    );
+                    user.health_points = new_hp;
+                    const gained_hp_capped = new_hp - user.health_points;
+                    if (gained_hp_capped > 0) {
+                      outcomesPrivate.push(
+                        `:anatomical_heart: You have gained ${gained_hp_capped} health points.\n`
+                      );
+                      outcomesFeed.push(
+                        `:anatomical_heart: ${userMention(
+                          user.discord_id
+                        )} has gained ${gained_hp_capped} health points.\n`
+                      );
+                    } else {
+                      outcomesPrivate.push(
+                        `:anatomical_heart: You have gained ${gained_hp} health points.\n`
+                      );
+                      outcomesFeed.push(
+                        `:anatomical_heart: ${userMention(
+                          user.discord_id
+                        )} has gained ${gained_hp} health points.\n`
+                      );
+                      // prettier-ignore
+                      outcomesPrivateZero.push(
+                        ':exclamation: You couldn\'t gain the HP because your health is already at 100.\n'
+                      );
+                      outcomesFeedZero.push(
+                        `:exclamation: ${userMention(
+                          user.discord_id
+                        )} couldn't gain the HP because their health is already at 100.\n`
+                      );
+                    }
                   } else if (out.includes('regenerated')) {
                     if (out.includes('an ep')) {
                       user.energy_points = Math.min(
@@ -969,10 +1035,10 @@ module.exports = {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        'You have regenerated an energy point.\n'
+                        ':zap: You have regenerated an energy point.\n'
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:zap: ${userMention(
                           user.discord_id
                         )} has regenerated an energy point.\n`
                       );
@@ -982,10 +1048,10 @@ module.exports = {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        'You have regenerated two energy points.\n'
+                        ':zap: You have regenerated two energy points.\n'
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:zap: ${userMention(
                           user.discord_id
                         )} has regenerated two energy points.\n`
                       );
@@ -995,10 +1061,10 @@ module.exports = {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        'You have regenerated all energy points.\n'
+                        ':zap: You have regenerated all energy points.\n'
                       );
                       outcomesFeed.push(
-                        `${userMention(
+                        `:zap: ${userMention(
                           user.discord_id
                         )} has regenerated all energy points.\n`
                       );
@@ -1019,20 +1085,20 @@ module.exports = {
                       if (user.armor === armor.name) {
                         user.gold += armor.cost;
                         outcomesPrivate.push(
-                          `You have found ${armor.name} and sold it for ${armor.cost} credits.\n`
+                          `:coin: You have found ${armor.name} and sold it for ${armor.cost} credits.\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(user.discord_id)} has found ${
+                          `:coin: ${userMention(user.discord_id)} has found ${
                             armor.name
                           } and sold it for ${armor.cost} credits.\n`
                         );
                       } else {
                         user.armor = armor.name;
                         outcomesPrivate.push(
-                          `Your armor has been upgraded to ${armor_str}.\n`
+                          `:shield: Your armor has been upgraded to ${armor_str}.\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(
+                          `:shield: ${userMention(
                             user.discord_id
                           )}’s armor has been upgraded to ${armor_str}.\n`
                         );
@@ -1052,10 +1118,10 @@ module.exports = {
                       if (user.weapon === weapon.name) {
                         user.gold += weapon.cost;
                         outcomesPrivate.push(
-                          `You have found ${weapon.name} and sold it for ${weapon.cost} credits.\n`
+                          `:coin: You have found ${weapon.name} and sold it for ${weapon.cost} credits.\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(user.discord_id)} has found ${
+                          `:coin: ${userMention(user.discord_id)} has found ${
                             weapon.name
                           } and sold it for ${weapon.cost} credits.\n`
                         );
@@ -1064,10 +1130,10 @@ module.exports = {
                         user.attack_power =
                           BASE_ATTACK_POWER + weapon.attack_power;
                         outcomesPrivate.push(
-                          `Your weapon has been upgraded to ${weapon_str}.\n`
+                          `:dagger: Your weapon has been upgraded to ${weapon_str}.\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(
+                          `:dagger: ${userMention(
                             user.discord_id
                           )}’s weapon has been upgraded to ${weapon_str}.\n`
                         );
@@ -1091,20 +1157,22 @@ module.exports = {
                       if (user.armor === armor.name) {
                         user.gold += armor.cost;
                         outcomesPrivate.push(
-                          `You have acquired ${armor.name} (armor) and sold it for ${armor.cost} credits.\n`
+                          `:coin: You have acquired ${armor.name} (armor) and sold it for ${armor.cost} credits.\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(user.discord_id)} has acquired ${
+                          `:coin: ${userMention(
+                            user.discord_id
+                          )} has acquired ${
                             armor.name
                           } (armor) and sold it for ${armor.cost} credits.\n`
                         );
                       } else {
                         user.armor = armor.name;
                         outcomesPrivate.push(
-                          `You have acquired ${armor_str} (armor).\n`
+                          `:shield: You have acquired ${armor_str} (armor).\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(
+                          `:shield: ${userMention(
                             user.discord_id
                           )} has acquired ${armor_str} (armor).\n`
                         );
@@ -1125,10 +1193,12 @@ module.exports = {
                       if (user.weapon === weapon.name) {
                         user.gold += weapon.cost;
                         outcomesPrivate.push(
-                          `You have acquired ${weapon.name} (weapon) and sold it for ${weapon.cost} credits.\n`
+                          `:coin: You have acquired ${weapon.name} (weapon) and sold it for ${weapon.cost} credits.\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(user.discord_id)} has acquired ${
+                          `:coin: ${userMention(
+                            user.discord_id
+                          )} has acquired ${
                             weapon.name
                           } (weapon) and sold it for ${weapon.cost} credits.\n`
                         );
@@ -1137,10 +1207,10 @@ module.exports = {
                         user.attack_power =
                           BASE_ATTACK_POWER + weapon.attack_power;
                         outcomesPrivate.push(
-                          `You have acquired ${weapon_str} (weapon).\n`
+                          `:dagger: You have acquired ${weapon_str} (weapon).\n`
                         );
                         outcomesFeed.push(
-                          `${userMention(
+                          `:dagger: ${userMention(
                             user.discord_id
                           )} has acquired ${weapon_str} (weapon).\n`
                         );
@@ -1155,7 +1225,7 @@ module.exports = {
                   await channel.send(
                     `${feedWithoutOutcome}\n${outcomesFeed.join(
                       ''
-                    )}${LINE_SEPARATOR}`
+                    )}\n\n${outcomesFeedZero.join('')}${LINE_SEPARATOR}`
                   );
                 }
                 await i.update({
@@ -1165,7 +1235,9 @@ module.exports = {
                         random.scenario
                       )}\n\n<:bits:1136640391555330172>:${
                         random.bits
-                      }\n\n${outcomesPrivate.join('')}`
+                      }\n\n${outcomesPrivate.join(
+                        ''
+                      )}\n\n${outcomesPrivateZero.join('')}`
                     )
                   ],
                   ephemeral: true
