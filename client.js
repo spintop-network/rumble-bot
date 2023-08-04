@@ -69,7 +69,7 @@ client.once(Events.ClientReady, async (c) => {
         '\n' +
         bold(':diamond_shape_with_a_dot_inside: EP:') +
         'Energy point. Your actions depend on the energy points you have. In total, you have 6 energy points. Unlike visiting the Armory, Battle and Random Encounters cost you an EP each. An EP regenerates every 4 hours, and in addition to an EP, you\'ll receive 10 Credits every 4 hours. If you have 6/6 EP and not taking any action, such as Battle or Random Encounters, you’ll lose 5 HP for every inactive 4-hour cycle.' +
-        '\n' +
+        '\n\n' +
         bold(':diamond_shape_with_a_dot_inside: AP:') +
         ' Attack power. Your attack power is 2 as default; however, you can increase this by buying or earning weapons.\n' +
         '\n' +
@@ -147,46 +147,42 @@ client.once(Events.ClientReady, async (c) => {
 
   const row = new ActionRowBuilder().addComponents(register);
 
-  try {
-    const channel =
-      (await client.channels.cache.get(rooms.register)) ||
-      (await client.channels.fetch(rooms.register));
-    if (channel) {
-      const messages = await channel.messages.fetch({ limit: 100 });
-      if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
-        await channel.send({ embeds: [registerEmbed], components: [row] });
-      }
+  for await (const props of [
+    {
+      channelId: rooms.register,
+      embeds: [registerEmbed],
+      components: [row]
+    },
+    {
+      channelId: rooms.verification,
+      embeds: [registerEmbed2],
+      components: []
+    },
+    {
+      channelId: rooms.pilots_handbook,
+      embeds: [rulesEmbed, rulesEmbed2, rulesEmbed3],
+      components: []
     }
-    const verificationChannel =
-      (await client.channels.cache.get(rooms.verification)) ||
-      (await client.channels.fetch(rooms.verification));
-    if (verificationChannel) {
-      const messages = await verificationChannel.messages.fetch({ limit: 100 });
-      if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
-        await verificationChannel.send({
-          embeds: [registerEmbed2],
-          components: []
-        });
+  ]) {
+    try {
+      const channel =
+        (await client.channels.cache.get(props.channelId)) ||
+        (await client.channels.fetch(props.channelId));
+      if (channel) {
+        const messages = await channel.messages.fetch({ limit: 100 });
+        if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
+          for await (const embed of props.embeds) {
+            const message = await channel.send({
+              embeds: [embed],
+              components: props.components
+            });
+            await message.pin();
+          }
+        }
       }
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
-  }
-
-  try {
-    const channel =
-      (await client.channels.cache.get(rooms.pilots_handbook)) ||
-      (await client.channels.fetch(rooms.pilots_handbook));
-    if (channel) {
-      const messages = await channel.messages.fetch({ limit: 100 });
-      if (!messages.find((i) => i.author.id === clientId && i.pinned)) {
-        await channel.send({ embeds: [rulesEmbed], components: [] });
-        await channel.send({ embeds: [rulesEmbed2], components: [] });
-        await channel.send({ embeds: [rulesEmbed3], components: [] });
-      }
-    }
-  } catch (error) {
-    console.error(error);
   }
 });
 

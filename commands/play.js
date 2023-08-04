@@ -31,31 +31,49 @@ const {
 } = require('../constants');
 const { client } = require('../client');
 
+const LINE_SEPARATOR = '\n\n•───────────────────••───────────────────•';
+
 const createEmbed = (user) => {
+  const weapon = weapons[user.weapon];
+  const armor = armors[user.armor];
+  let weaponName = 'None';
+  let armorName = 'None';
+  if (weapon) {
+    if (weapon.emoji) weaponName = `${weapon.emoji} ${weapon.name}`;
+    else weaponName = weapon.name;
+  }
+  if (armor) {
+    if (armor.emoji) armorName = `${armor.emoji} ${armor.name}`;
+    else armorName = armor.name;
+  }
   return new EmbedBuilder().setTitle('Welcome to the game!').addFields(
     {
-      name: 'HP',
+      name: ':anatomical_heart: HP',
       value: `${user.health_points}/100`,
       inline: true
     },
-    { name: 'AP', value: `${user.attack_power}`, inline: true },
     {
-      name: 'EP',
+      name: ':crossed_swords: AP',
+      value: `${user.attack_power}`,
+      inline: true
+    },
+    {
+      name: ':zap: EP',
       value: `${user.energy_points}/${BASE_ENERGY_POINTS}`,
       inline: true
     },
     {
-      name: '<:zpintop:1129374515365945364> Credit',
+      name: ':coin: Credits',
       value: `${user.gold}`,
       inline: true
     },
     {
-      name: 'Repair Kit Cost',
+      name: '<:repairkit:1136615732931723324> Repair Kit Cost',
       value: `${user.health_potion_cost}`,
       inline: true
     },
-    { name: 'Weapon', value: user.weapon ?? 'None', inline: true },
-    { name: 'Armor', value: user.armor ?? 'None', inline: true }
+    { name: ':dagger: Weapon', value: weaponName, inline: true },
+    { name: ':shield: Armor', value: armorName, inline: true }
   );
 };
 
@@ -64,12 +82,12 @@ const createNotificationEmbed = (title, description) =>
 
 const createShopEmbed = (user) => {
   const weapons_shop = Object.values(weapons).map((weapon) => ({
-    name: weapon.name,
+    name: weapon.emoji ? `${weapon.emoji} ${weapon.name}` : weapon.name,
     value: `AP:${weapon.attack_power} Cost:${weapon.cost}`,
     inline: true
   }));
   const armors_shop = Object.values(armors).map((armor) => ({
-    name: armor.name,
+    name: armor.emoji ? `${armor.emoji} ${armor.name}` : armor.name,
     value: `Damage Mitigation:${armor.dmg_migration} Cost:${armor.cost}`,
     inline: true
   }));
@@ -77,14 +95,18 @@ const createShopEmbed = (user) => {
     .setTitle('ARMORY')
     .setDescription(
       `We have precious items!\n
-      Your have ${bold(user.gold)} credits.\n
+      :coin: Your have ${bold(user.gold)} credits.\n
       You can sell your items here for ${bold(
         'half of the price'
-      )} you bought them for.\n`
+      )} you bought them for.\n\n`
     )
     .addFields(
       {
-        name: 'Repair Kit',
+        name: '\n',
+        value: '\n'
+      },
+      {
+        name: '<:repairkit:1136615732931723324> Repair Kit',
         value: `${user.health_potion_cost}`
       },
       {
@@ -100,11 +122,11 @@ const createShopEmbed = (user) => {
     );
 };
 
-const createRow = (custom_ids = ['status']) => {
+const createRow = (custom_ids = ['status'], user) => {
   const buttons = {
     status: {
       customId: 'status',
-      label: 'Main Menu',
+      label: 'Status/Refresh',
       style: ButtonStyle.Primary
     },
     duel: {
@@ -159,13 +181,19 @@ const createRow = (custom_ids = ['status']) => {
         new StringSelectMenuOptionBuilder()
           .setLabel('Go Back')
           .setDescription('Go back to the previous menu')
-          .setValue('weapon_go_back'),
-        ...Object.entries(weapons).map(([key, value]) =>
-          new StringSelectMenuOptionBuilder()
-            .setLabel(value.name)
-            .setDescription(value.description)
-            .setValue(key)
-        )
+          .setValue('weapon_go_back')
+          .setEmoji('⬅️'),
+        ...Object.entries(weapons).map(([key, value]) => {
+          const menuOption = new StringSelectMenuOptionBuilder()
+            .setLabel(`${value.name}`)
+            .setDescription(`${value.description}`)
+            .setValue(key);
+          if (user) {
+            if (user.gold >= value.cost) menuOption.setEmoji('✅');
+            else menuOption.setEmoji('❌');
+          }
+          return menuOption;
+        })
       ]
     },
     armor_list: {
@@ -175,26 +203,54 @@ const createRow = (custom_ids = ['status']) => {
         new StringSelectMenuOptionBuilder()
           .setLabel('Go Back')
           .setDescription('Go back to the previous menu')
-          .setValue('armor_go_back'),
-        ...Object.entries(armors).map(([key, value]) =>
-          new StringSelectMenuOptionBuilder()
+          .setValue('armor_go_back')
+          .setEmoji('⬅️'),
+        ...Object.entries(armors).map(([key, value]) => {
+          const menuOption = new StringSelectMenuOptionBuilder()
             .setLabel(value.name)
             .setDescription(value.description)
-            .setValue(key)
-        )
+            .setValue(key);
+          if (user) {
+            if (user.gold >= value.cost) menuOption.setEmoji('✅');
+            else menuOption.setEmoji('❌');
+          }
+          return menuOption;
+        })
       ]
     }
+  };
+
+  const buttonEmojis = {
+    buy_potion: '1136615732931723324',
+    status: '🔄',
+    duel: '🪓',
+    random_encounter: '🎲',
+    shop: '🛒',
+    buying: '🛒',
+    buy_weapon: '🗡️',
+    sell_weapon: '🗡️',
+    buy_armor: '🛡️',
+    sell_armor: '🛡️'
   };
 
   return new ActionRowBuilder().addComponents(
     ...custom_ids.reduce((acc, id) => {
       const rowItem = buttons[id];
+      console.log(rowItem.customId);
       if (['weapon_list', 'armor_list'].includes(id)) {
         acc.push(
           new StringSelectMenuBuilder()
             .setCustomId(rowItem.customId)
             .setPlaceholder(rowItem.placeholder)
             .addOptions(rowItem.items)
+        );
+      } else if (buttonEmojis[id]) {
+        acc.push(
+          new ButtonBuilder()
+            .setCustomId(rowItem.customId)
+            .setLabel(rowItem.label)
+            .setStyle(rowItem.style)
+            .setEmoji(buttonEmojis[id])
         );
       } else {
         acc.push(
@@ -210,14 +266,14 @@ const createRow = (custom_ids = ['status']) => {
   );
 };
 
-const createExtraRows = (obj, key) => {
+const createExtraRows = (obj, key, user) => {
   if (!obj[key]) {
     if (key === 'shop') {
       obj[key] = createRow(['status', 'buying', 'sell_weapon', 'sell_armor']);
     } else if (key === 'buy_weapon') {
-      obj[key] = createRow(['weapon_list']);
+      obj[key] = createRow(['weapon_list'], user);
     } else if (key === 'buy_armor') {
-      obj[key] = createRow(['armor_list']);
+      obj[key] = createRow(['armor_list'], user);
     } else if (key === 'buying') {
       obj[key] = createRow(['status', 'buy_potion', 'buy_weapon', 'buy_armor']);
     }
@@ -297,11 +353,13 @@ const startDuel = async (
         components: [row],
         ephemeral: true
       });
-      await User.findOneAndUpdate(
-        { discord_id: i.user.id, energy_points: { $gt: 0 } },
-        { $inc: { energy_points: -1 } },
-        { session }
-      );
+      if (!is_random_encounter) {
+        await User.findOneAndUpdate(
+          { discord_id: i.user.id, energy_points: { $gt: 0 } },
+          { $inc: { energy_points: -1 } },
+          { session }
+        );
+      }
     }
     return;
   }
@@ -337,6 +395,10 @@ const startDuel = async (
     winner.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
   const loserRoll =
     loser.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
+  const winnerDamage =
+    winner.discord_id === i.user.id ? playerDamage : otherPlayerDamage;
+  const loserDamage =
+    loser.discord_id === i.user.id ? playerDamage : otherPlayerDamage;
   const damageFloat =
     BASE_DAMAGE +
     Math.abs(playerDamage - otherPlayerDamage) *
@@ -378,7 +440,11 @@ const startDuel = async (
     : `${duel_text}\n${armory_text}`;
   duel_text += `\n\n @kazanan rolled ${
     Math.floor(winnerRoll * 100) + 1
-  }/100 and @kaybeden rolled ${Math.floor(loserRoll * 100) + 1}/100.`;
+  }/100 and tried to give ${(winnerDamage * 10).toFixed(
+    2
+  )} damage. @kaybeden rolled ${
+    Math.floor(loserRoll * 100) + 1
+  }/100 and tried to give ${(loserDamage * 10).toFixed(2)} damage.`;
   const earnedGold = isLoserDead
     ? Math.floor(
         loser.gold +
@@ -439,15 +505,16 @@ const startDuel = async (
   }
   const channel = await getChannel(rooms.feed);
   if (channel) {
-    await Promise.all([
-      User.findOneAndUpdate(
+    const duel_text_with_separator = duel_text + LINE_SEPARATOR;
+    if (!is_random_encounter) {
+      await User.findOneAndUpdate(
         { discord_id: i.user.id, energy_points: { $gt: 0 } },
         { $inc: { energy_points: -1 } },
         { session }
-      ),
-      channel.send(duel_text)
-    ]);
-  } else {
+      );
+    }
+    await channel.send(duel_text_with_separator);
+  } else if (!is_random_encounter) {
     await User.findOneAndUpdate(
       { discord_id: i.user.id, energy_points: { $gt: 0 } },
       { $inc: { energy_points: -1 } },
@@ -671,9 +738,8 @@ module.exports = {
                 });
                 return;
               }
-              user.energy_points = Math.max(0, user.energy_points - 1);
-              const random_number = Math.floor(Math.random() * randoms.length);
-              const random = randoms[random_number];
+              let random_number = Math.floor(Math.random() * randoms.length);
+              let random = randoms[random_number];
               const channel =
                 (await client.channels.cache.get(rooms.feed)) ||
                 (await client.channels.fetch(rooms.feed));
@@ -1087,13 +1153,17 @@ module.exports = {
                     .slice(0, random.feed.indexOf('Outcome:'))
                     .replaceAll('@xxx', userMention(user.discord_id));
                   await channel.send(
-                    `${feedWithoutOutcome}\n${outcomesFeed.join('')}`
+                    `${feedWithoutOutcome}\n${outcomesFeed.join(
+                      ''
+                    )}${LINE_SEPARATOR}`
                   );
                 }
                 await i.update({
                   embeds: [
                     new EmbedBuilder().setDescription(
-                      `${italic(random.scenario)}\n\n${
+                      `${italic(
+                        random.scenario
+                      )}\n\n<:bits:1136640391555330172>:${
                         random.bits
                       }\n\n${outcomesPrivate.join('')}`
                     )
@@ -1112,17 +1182,27 @@ module.exports = {
                   (random_number >= 45 && random_number <= 49) ||
                   !isThereOtherPlayer
                 ) {
+                  if (random_number >= 50) {
+                    random_number = Math.floor(Math.random() * 5 + 45);
+                    random = randoms[random_number];
+                  }
                   if (channel) {
                     const feedWithoutOutcome = random.feed.replaceAll(
                       '@xxx',
                       userMention(user.discord_id)
                     );
                     await Promise.all([
-                      channel.send(feedWithoutOutcome),
+                      channel.send(
+                        `${feedWithoutOutcome}\n\nNothing happens.${LINE_SEPARATOR}`
+                      ),
                       i.update({
                         embeds: [
                           new EmbedBuilder().setDescription(
-                            `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                            `${italic(
+                              random.scenario
+                            )}\n\n<:bits:1136640391555330172>:${
+                              random.bits
+                            }\n\n`
                           )
                         ],
                         ephemeral: true
@@ -1132,7 +1212,9 @@ module.exports = {
                     await i.update({
                       embeds: [
                         new EmbedBuilder().setDescription(
-                          `${italic(random.scenario)}\n\n${random.bits}\n\n`
+                          `${italic(
+                            random.scenario
+                          )}\n\n<:bits:1136640391555330172>:${random.bits}\n\n`
                         )
                       ],
                       ephemeral: true
@@ -1140,14 +1222,13 @@ module.exports = {
                   }
                 } else if (random_number >= 50) {
                   console.log('Battle encounter');
-                  await startDuel(session, user, i, embed, row, true);
                   if (channel) {
                     const feedWithMention = random.feed.replaceAll(
                       '@xxx',
                       userMention(user.discord_id)
                     );
                     await Promise.all([
-                      channel.send(feedWithMention),
+                      channel.send(`${feedWithMention}${LINE_SEPARATOR}`),
                       i.update({
                         embeds: [
                           new EmbedBuilder().setDescription(
@@ -1167,8 +1248,10 @@ module.exports = {
                       ephemeral: true
                     });
                   }
+                  await startDuel(session, user, i, embed, row, true);
                 }
               }
+              user.energy_points = Math.max(0, user.energy_points - 1);
               await user.save({ session });
             } else if (i.customId === 'shop') {
               try {
@@ -1237,7 +1320,7 @@ module.exports = {
                   ephemeral: true
                 });
               } else {
-                createExtraRows(extraRows, 'buy_weapon');
+                createExtraRows(extraRows, 'buy_weapon', user);
                 await i.update({
                   embeds: [createShopEmbed(user)],
                   components: [extraRows.buy_weapon],
@@ -1291,7 +1374,7 @@ module.exports = {
                   ephemeral: true
                 });
               } else {
-                createExtraRows(extraRows, 'buy_armor');
+                createExtraRows(extraRows, 'buy_armor', user);
                 await i.update({
                   embeds: [createShopEmbed(user)],
                   components: [extraRows.buy_armor],

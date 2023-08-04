@@ -38,6 +38,7 @@ const weapons = {
   'EMP Paralyzer': {
     name: 'EMP Paralyzer',
     description: 'EMP Paralyzer',
+    emoji: '<:emp:1136640918133411881>',
     attack_power: 6,
     cost: 550
   },
@@ -62,6 +63,7 @@ const weapons = {
   'Super Duper Planet Blower': {
     name: 'Super Duper Planet Blower',
     description: 'Super Duper Planet Blower',
+    emoji: '<:superduper:1136641028363923496>',
     attack_power: 10,
     cost: 1000
   }
@@ -85,11 +87,15 @@ const randoms_file = readFileSync('./data/randoms.xlsx');
 
 const bad_and_good_randoms = xlsx
   .parse(randoms_file, {
-    sheets: ['Bad Random Encounters (27)', 'Good Random Encounters (18)']
+    sheets: ['Bad Random Encounters (27)', 'Good Random Encounters (19)']
   })
   .flatMap((sheet) => sheet.data.slice(1))
   .filter((i) => i.length)
   .map((row) => row.slice(1))
+  // TODO: Remove below filter after adding pot good encounter.
+  .filter((i) => i.length > 1)
+  // Below map clears the side notes from excel. (Texts outside of the table.)
+  .map((arr) => arr.slice(0, 2))
   .map((arr) => {
     const scenario_start = arr[0].indexOf('Scenario:\n');
     const bits_start = arr[0].indexOf('BITS:\n');
@@ -126,8 +132,6 @@ const neutral_randoms = xlsx
       feed: arr[1].replace('Feed:\n', '').trim()
     };
   });
-('a');
-
 const battle_randoms = xlsx
   .parse(randoms_file, {
     sheets: 'Battle Encounters (5)'
@@ -149,30 +153,35 @@ const armors = {
   'Ballistic Shield': {
     name: 'Ballistic Shield',
     description: 'Ballistic Shield',
+    emoji: '<:ballistic_shield:1136615498981834823>',
     dmg_migration: 0.1,
     cost: 50
   },
   'Titanium Plating': {
     name: 'Titanium Plating',
     description: 'Titanium Plating',
+    emoji: '<:titanium_plating:1136615766876237854>',
     dmg_migration: 0.2,
     cost: 125
   },
   'Positron Energy Barrier': {
     name: 'Positron Energy Barrier',
     description: 'Positron Energy Barrier',
+    emoji: '<:positron_energy_barrier:1136615640665444352>',
     dmg_migration: 0.3,
     cost: 200
   },
   'Quantum Armor': {
     name: 'Quantum Armor',
     description: 'Quantum Armor',
+    emoji: '<:quantum_armor:1136615691223568394>',
     dmg_migration: 0.4,
     cost: 350
   },
   'Gravitational Absorber': {
     name: 'Gravitational Absorber',
     description: 'Gravitational Absorber',
+    emoji: '<:gravitational_absorber:1136615546406830110>',
     dmg_migration: 0.5,
     cost: 500
   }

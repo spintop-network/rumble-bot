@@ -49,7 +49,7 @@ exports = async () => {
 
       await usersCollection.updateMany(
         { health_points: { $gt: 0 } },
-        { $inc: { gold: 20 } },
+        { $inc: { gold: 10 } },
         { session }
       );
       await usersCollection.updateMany(
