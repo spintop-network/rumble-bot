@@ -139,19 +139,39 @@ client.once(Events.ClientReady, async (c) => {
       ':large_orange_diamond: 16th to 20th: $20\n'
   );
 
+  const gameEmbed = new EmbedBuilder().setDescription(
+    'Start to play or see leaderboard!'
+  );
+
   const register = new ButtonBuilder()
     .setCustomId('registerButton')
     .setLabel('Register')
     .setEmoji('✍️')
     .setStyle(ButtonStyle.Success);
 
-  const row = new ActionRowBuilder().addComponents(register);
+  const playButton = new ButtonBuilder()
+    .setCustomId('playButton')
+    .setLabel('Play')
+    .setEmoji('🎮')
+    .setStyle(ButtonStyle.Success);
+
+  const leaderboardButton = new ButtonBuilder()
+    .setCustomId('leaderboardButton')
+    .setLabel('Leaderboard')
+    .setEmoji('🏆')
+    .setStyle(ButtonStyle.Success);
+
+  const registerRow = new ActionRowBuilder().addComponents(register);
+  const gameRow = new ActionRowBuilder().addComponents(
+    playButton,
+    leaderboardButton
+  );
 
   for await (const props of [
     {
       channelId: rooms.register,
       embeds: [registerEmbed],
-      components: [row]
+      components: [registerRow]
     },
     {
       channelId: rooms.verification,
@@ -162,6 +182,11 @@ client.once(Events.ClientReady, async (c) => {
       channelId: rooms.pilots_handbook,
       embeds: [rulesEmbed, rulesEmbed2, rulesEmbed3],
       components: []
+    },
+    {
+      channelId: rooms.game,
+      embeds: [gameEmbed],
+      components: [gameRow]
     }
   ]) {
     try {

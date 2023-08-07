@@ -5,15 +5,11 @@ const { Events, EmbedBuilder, userMention } = require('discord.js');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { client } = require('./client.js');
-const User = require('./models/user');
 const Notification = require('./models/notification');
-const {
-  rooms,
-  roles,
-  BASE_ENERGY_POINTS,
-  BASE_ATTACK_POWER,
-  STARTER_GOLD
-} = require('./constants');
+const register = require('./buttons/register');
+const play = require('./buttons/play');
+const leaderboard = require('./buttons/leaderboard');
+const { rooms } = require('./constants');
 
 dotenv.config();
 mongoose.connect(process.env.MONGODB_URI);
@@ -64,57 +60,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   } else if (interaction.isButton()) {
     if (interaction.customId === 'registerButton') {
-      const session = await mongoose.startSession();
-      try {
-        await session.withTransaction(async () => {
-          const user = await User.findOne({
-            discord_id: interaction.user.id
-          }).session(session);
-          if (user) {
-            await interaction.reply({
-              content: 'You are already registered!',
-              ephemeral: true
-            });
-            return;
-          }
-          const newUser = new User({
-            discord_id: interaction.user.id,
-            health_points: 100,
-            attack_power: BASE_ATTACK_POWER,
-            energy_points: BASE_ENERGY_POINTS,
-            gold: STARTER_GOLD,
-            health_potion_cost: 50,
-            weapon: null,
-            armor: null
-          });
-          await newUser.save({ session });
-          if (process.env.NODE_ENV === 'production') {
-            if (
-              !interaction.member.roles.cache.has(roles.pilot) ||
-              !interaction.member.roles.cache.has(roles.normie)
-            ) {
-              const rolesArray = [
-                ...Array.from(interaction.member.roles.cache.keys()),
-                roles.pilot,
-                roles.normie
-              ];
-              const uniqueRolesArray = [...new Set(rolesArray)];
-              await interaction.member.roles.set(uniqueRolesArray);
-            }
-          }
-          await interaction.reply({
-            content:
-              // prettier-ignore
-              'Congratulations, pilot; you have been registered successfully! To learn everything about Spintop\'s Cobot Rumble, check out the Pilot\'s Handbook:\n' +
-              'https://discord.com/channels/893489228502167615/1131860456097714218',
-            ephemeral: true
-          });
-        });
-      } catch (error) {
-        console.error(error);
-      } finally {
-        await session.endSession();
-      }
+      await register(interaction);
+    } else if (interaction.customId === 'playButton') {
+      await play(interaction);
+    } else if (interaction.customId === 'leaderboardButton') {
+      await leaderboard(interaction);
     }
   }
 });

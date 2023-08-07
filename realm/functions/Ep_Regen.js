@@ -9,6 +9,7 @@ exports = async () => {
   const usersCollection = db.collection('users');
   const notifications = db.collection('notifications');
   const deaths = db.collection('deaths');
+  const duels = db.collection('duels');
 
   const session = client.startSession();
 
@@ -25,7 +26,7 @@ exports = async () => {
           {
             energy_points: 6,
             $and: [
-              { health_points: { $lte: 10 } },
+              { health_points: { $lte: 5 } },
               { health_points: { $gt: 0 } }
             ]
           },
@@ -45,6 +46,15 @@ exports = async () => {
           ordered: false
         });
         await deaths.insertMany(bulkOperations, { session, ordered: false });
+        await usersCollection.updateMany(
+          { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
+          { $inc: { health_points: -5 } },
+          { session }
+        );
+        await duels.deleteMany(
+          { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
+          { session }
+        );
       }
 
       await usersCollection.updateMany(
@@ -58,7 +68,7 @@ exports = async () => {
         { session }
       );
       await usersCollection.updateMany(
-        { energy_points: { $lt: 6 } },
+        { energy_points: { $lt: 6 }, health_points: { $gt: 0 } },
         { $inc: { energy_points: 1 } },
         { session }
       );
