@@ -2,36 +2,42 @@ const { parse } = require('csv-parse/sync');
 const xlsx = require('node-xlsx');
 const dotenv = require('dotenv');
 const { readFileSync } = require('fs');
+const { bold } = require('discord.js');
 dotenv.config();
 
 const weapons = {
   'Platinum Pan': {
     name: 'Platinum Pan',
     description: 'Platinum Pan',
+    emoji: '<:platinum_pan:1138065863442968657>',
     attack_power: 1,
     cost: 50
   },
   'Ballistic Missile Launcher': {
     name: 'Ballistic Missile Launcher',
     description: 'Ballistic Missile Launcher',
+    emoji: '<:ballistic_missile_launcher:1138065479680925767>',
     attack_power: 2,
     cost: 150
   },
   'N.U.K.A. Laser Cannon': {
     name: 'N.U.K.A. Laser Cannon',
     description: 'N.U.K.A. Laser Cannon',
+    emoji: '<:nuka_laser:1138065808598249562>',
     attack_power: 3,
     cost: 250
   },
   'Ion Heavy Artillery': {
     name: 'Ion Heavy Artillery',
     description: 'Ion Heavy Artillery',
+    emoji: '<:ion_heavy_artillery:1138065648199684197>',
     attack_power: 4,
     cost: 350
   },
   'Acrid Plasma Cutter': {
     name: 'Acrid Plasma Cutter',
     description: 'Acrid Plasma Cutter',
+    emoji: '<:acrid_plasma_cutter:1138065202458411049>',
     attack_power: 5,
     cost: 450
   },
@@ -45,18 +51,21 @@ const weapons = {
   'Nanobot Swarm Guidance System': {
     name: 'Nanobot Swarm Guidance System',
     description: 'Nanobot Swarm Guidance System',
+    emoji: '<:nanobot_swarm_guidance_system:1138071762219839518>',
     attack_power: 7,
     cost: 650
   },
   'Nuclear Warhead': {
     name: 'Nuclear Warhead',
     description: 'Nuclear Warhead',
+    emoji: '<:nuclear_warhead:1138065758790893709>',
     attack_power: 8,
     cost: 750
   },
   'Reality Warper': {
     name: 'Reality Warper',
     description: 'Reality Warper',
+    emoji: '<:reality_warper:1138065916790313082>',
     attack_power: 9,
     cost: 850
   },
@@ -123,13 +132,21 @@ const neutral_randoms = xlsx
   .map((arr) => {
     const scenario_start = arr[0].indexOf('Scenario:\n');
     const bits_start = arr[0].indexOf('BITS:\n');
+    const outcome_start = arr[0].indexOf('Outcome:\n');
     return {
       scenario: arr[0]
         .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
         .replace('Scenario:\n', '')
         .trim(),
-      bits: arr[0].slice(bits_start).replace('BITS:\n', '').trim(),
-      feed: arr[1].replace('Feed:\n', '').trim()
+      bits: arr[0]
+        .slice(bits_start, outcome_start)
+        .replace('BITS:\n', '')
+        .trim(),
+      outcome: arr[0].slice(outcome_start).replace('Outcome:\n', '').trim(),
+      feed: arr[1]
+        .slice(0, arr[1].indexOf('Outcome:'))
+        .replace('Feed:\n', '')
+        .trim()
     };
   });
 const battle_randoms = xlsx
@@ -234,11 +251,11 @@ const duel_texts = [
     getting_damage:
       '"@kaybeden’s Cobot gives hundreds of system malfunction warnings. It can’t even stand still, shaking from its legs to the head. It looks like it is the end of the road. @kazanan is victorious! \n' +
       '\n' +
-      '@kaybeden is ELIMINATED!',
+      `:skull: @kaybeden is ${bold('ELIMINATED!')}`,
     damaging:
       '"@kazanan’s attack was so powerful and devastating that the entire Cobot\'s Steam Arena (sponsored by BITS Artificial Services) has felt the impact! \n' +
       '\n' +
-      '@kaybeden is ELIMINATED!'
+      `:skull: @kaybeden is ${bold('ELIMINATED!')}`
   }
 ];
 
