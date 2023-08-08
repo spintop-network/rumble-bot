@@ -781,8 +781,7 @@ const play = async (interaction) => {
               return;
             }
             user.energy_points = Math.max(0, user.energy_points - 1);
-            // let random_number = Math.floor(Math.random() * randoms.length);
-            let random_number = 45;
+            let random_number = Math.floor(Math.random() * randoms.length);
             let random = randoms[random_number];
             const channel =
               (await client.channels.cache.get(rooms.feed)) ||
