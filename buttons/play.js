@@ -138,7 +138,7 @@ const createShopEmbed = (user) => {
       ...armors_shop
     );
 };
-
+// eslint-disable-next-line no-unused-vars
 const createRow = (custom_ids = ['status'], user) => {
   const buttons = {
     status: {
@@ -225,10 +225,6 @@ const createRow = (custom_ids = ['status'], user) => {
             .setLabel(`${value.name}`)
             .setDescription(`${value.description}`)
             .setValue(key);
-          if (user) {
-            if (user.gold >= value.cost) menuOption.setEmoji('✅');
-            else menuOption.setEmoji('❌');
-          }
           return menuOption;
         })
       ]
@@ -247,10 +243,6 @@ const createRow = (custom_ids = ['status'], user) => {
             .setLabel(value.name)
             .setDescription(value.description)
             .setValue(key);
-          if (user) {
-            if (user.gold >= value.cost) menuOption.setEmoji('✅');
-            else menuOption.setEmoji('❌');
-          }
           return menuOption;
         })
       ]
@@ -586,8 +578,7 @@ const play = async (interaction) => {
     });
     if (!user_global) {
       await interaction.editReply({
-        content:
-          'You are not registered! Please use /register command to register.',
+        content: 'You are not registered!',
         ephemeral: true
       });
       return;
@@ -1481,10 +1472,10 @@ const play = async (interaction) => {
                   '```ansi\n' +
                     '[2;45m[2;37m[2;37m[2;40m-RANDOM ENCOUNTER-[0m[2;37m[2;45m[0m[2;37m[2;45m[2;31m[0m[2;37m[2;45m[0m[2;45m[0m\n' +
                     '```' +
-                    '\n\n' +
+                    '\n' +
                     `:speech_balloon: ${feedWithoutOutcome}\n${outcomesFeed.join(
                       ''
-                    )}${outcomesFeedZeroText}${LINE_SEPARATOR}`.replaceAll(
+                    )}${outcomesFeedZeroText}\n${LINE_SEPARATOR}`.replaceAll(
                       '\n\n',
                       '\n'
                     )
@@ -1535,9 +1526,13 @@ const play = async (interaction) => {
                 );
                 await Promise.all([
                   channel.send(
-                    `:speech_balloon: ${feedWithoutOutcome}\n\n${bold(
-                      random.outcome
-                    )}${LINE_SEPARATOR}`
+                    '```ansi\n' +
+                      '[2;45m[2;37m[2;37m[2;40m-RANDOM ENCOUNTER-[0m[2;37m[2;45m[0m[2;37m[2;45m[2;31m[0m[2;37m[2;45m[0m[2;45m[0m\n' +
+                      '```' +
+                      '\n' +
+                      `:speech_balloon: ${feedWithoutOutcome}\n\n${bold(
+                        random.outcome
+                      )}${LINE_SEPARATOR}`
                   ),
                   i.update({
                     embeds: [
@@ -1575,7 +1570,11 @@ const play = async (interaction) => {
                 );
                 await Promise.all([
                   channel.send(
-                    `:speech_balloon: ${feedWithMention}${LINE_SEPARATOR}`
+                    '```ansi\n' +
+                      '[2;45m[2;37m[2;37m[2;40m-RANDOM ENCOUNTER-[0m[2;37m[2;45m[0m[2;37m[2;45m[2;31m[0m[2;37m[2;45m[0m[2;45m[0m\n' +
+                      '```' +
+                      '\n' +
+                      `:speech_balloon: ${feedWithMention}${LINE_SEPARATOR}`
                   ),
                   i.update({
                     embeds: [
