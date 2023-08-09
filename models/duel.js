@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const DuelSchema = new mongoose.Schema(
   {
-    discord_id: String
+    discord_id: String,
+    is_duel_in_progress: {
+      $type: Boolean,
+      default: false
+    }
   },
   {
     typeKey: '$type',

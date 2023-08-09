@@ -334,66 +334,187 @@ const startDuel = async (
   i,
   embed,
   row,
-  is_random_encounter = false
+  is_random_encounter,
+  isThereOtherPlayer = null
 ) => {
-  const isUserDueled = await Duel.findOne({
-    discord_id: i.user.id
-  }).session(session);
-  if (isUserDueled) {
-    if (!is_random_encounter) {
-      embed = await createEmbed(user);
-      await i.update({
-        content: '',
-        embeds: [
-          createNotificationEmbed(
-            'Hurray!',
-            'You are already in battle queue!'
-          ),
-          embed
-        ],
-        components: [row],
-        ephemeral: true
-      });
+  await session.withTransaction(async () => {
+    if (!isThereOtherPlayer) {
+      const duel = new Duel({ discord_id: i.user.id });
+      await duel.save({ session });
+      if (!is_random_encounter) {
+        embed = await createEmbed(user);
+        await i.update({
+          content: '',
+          embeds: [
+            createNotificationEmbed(
+              'Hurray!',
+              'You have been added to battle queue!'
+            ),
+            embed
+          ],
+          components: [row],
+          ephemeral: true
+        });
+        if (!is_random_encounter) {
+          await User.findOneAndUpdate(
+            { discord_id: i.user.id, energy_points: { $gt: 0 } },
+            { $inc: { energy_points: -1 } },
+            { session }
+          );
+        }
+      }
+      return;
     }
-    return;
-  }
-  if (user.energy_points <= 0) {
-    if (!is_random_encounter) {
-      embed = await createEmbed(user);
-      await i.update({
-        embeds: [
-          createNotificationEmbed('Oops!', 'You do not have enough EP!'),
-          embed
-        ],
-        components: [row],
-        ephemeral: true
-      });
+    const otherDuelPlayer = await User.findOne({
+      discord_id: isThereOtherPlayer.discord_id
+    }).session(session);
+    const playerRoll = Math.random();
+    const otherPlayerRoll = Math.random();
+    const playerDamage = parseFloat(
+      (playerRoll * user.attack_power).toFixed(2)
+    );
+    const otherPlayerDamage = parseFloat(
+      (otherPlayerRoll * otherDuelPlayer.attack_power).toFixed(2)
+    );
+    const isTie = playerDamage === otherPlayerDamage;
+    if (isTie) {
+      await Duel.deleteMany(
+        {
+          discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
+        },
+        { session }
+      );
+      if (!is_random_encounter) {
+        await i.update({
+          embeds: [createNotificationEmbed('Ooops!', 'It is a tie!'), embed],
+          components: [row],
+          ephemeral: true
+        });
+      }
+      return;
     }
-    return;
-  }
-  const isThereOtherPlayer = await Duel.findOneAndDelete(
-    {
-      discord_id: { $ne: i.user.id }
-    },
-    { session }
-  ).sort({ doc_created_at: 1 });
-  if (!isThereOtherPlayer) {
-    const duel = new Duel({ discord_id: i.user.id });
-    await duel.save({ session });
-    if (!is_random_encounter) {
-      embed = await createEmbed(user);
-      await i.update({
-        content: '',
-        embeds: [
-          createNotificationEmbed(
-            'Hurray!',
-            'You have been added to battle queue!'
-          ),
-          embed
-        ],
-        components: [row],
-        ephemeral: true
+    const winner = playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
+    const loser = playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
+    const winnerRoll =
+      winner.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
+    const loserRoll =
+      loser.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
+    const winnerDamage =
+      winner.discord_id === i.user.id ? playerDamage : otherPlayerDamage;
+    const loserDamage =
+      loser.discord_id === i.user.id ? playerDamage : otherPlayerDamage;
+    const damageFloat =
+      BASE_DAMAGE +
+      Math.abs(playerDamage - otherPlayerDamage) *
+        (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)) *
+        10;
+    const lostHealth =
+      loser.health_points - Math.round(loser.health_points - damageFloat);
+    loser.health_points = Math.round(loser.health_points - damageFloat);
+    await loser.save({ session });
+    const isLoserDead = loser.health_points <= 0;
+    const perspective = ['getting_damage', 'damaging'][
+      Math.floor(Math.random() * 2)
+    ];
+    const bound = duel_bounds.find(
+      (b) => damageFloat >= b.lower_bound && damageFloat < b.upper_bound
+    );
+    const boundName = isLoserDead ? 'Elimination' : bound.name;
+    const armor_text = loser.armor
+      ? armor_texts.filter((a) =>
+          a['Armor'].includes(loser.armor.toUpperCase())
+        )[Math.floor(Math.random() * 2)][bound.name]
+      : '';
+    const weapon_text = winner.weapon
+      ? weapon_texts.filter((w) =>
+          w['Weapon'].includes(winner.weapon.toUpperCase())
+        )[0][bound.name]
+      : '';
+    let armory_text = '';
+    if (armor_text && weapon_text) {
+      armory_text = [armor_text, weapon_text][Math.floor(Math.random() * 2)];
+    } else if (armor_text) {
+      armory_text = armor_text;
+    } else if (weapon_text) {
+      armory_text = weapon_text;
+    }
+    let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
+    duel_text = isLoserDead
+      ? `${armory_text}\n${duel_text}`
+      : `${duel_text}\n${armory_text}`;
+    duel_text = `:axe: ${duel_text}`;
+    const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
+    const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
+    duel_text += `\n\n:game_die: :dagger: @kazanan rolled ${bold(
+      winnerRollText
+    )} and dealt ${bold((winnerDamage * 10).toFixed(2))} damage with ${bold(
+      winner.attack_power.toString() + ' AP'
+    )}. @kaybeden rolled ${bold(loserRollText)} and failed to deal ${bold(
+      (loserDamage * 10).toFixed(2)
+    )} damage with ${bold(loser.attack_power.toString() + ' AP')}.`;
+    const earnedGold = isLoserDead
+      ? Math.floor(
+          loser.gold +
+            (loser.armor ? armors[loser.armor].cost : 0) +
+            (loser.weapon ? weapons[loser.weapon].cost : 0)
+        )
+      : Math.floor(loser.gold / 2);
+    duel_text += `\n\n:coin: :mending_heart: @kaybeden has lost ${bold(
+      earnedGold
+    )} Credits and ${bold(lostHealth)} HP.`;
+    duel_text = duel_text
+      .replaceAll('@kazanan', userMention(winner.discord_id))
+      .replaceAll('@kaybeden', userMention(loser.discord_id));
+    winner.gold += earnedGold;
+
+    if (isLoserDead) {
+      const death = new Death({
+        type: 'duel',
+        discord_id: loser.discord_id,
+        death_time: new Date()
       });
+      await Promise.all([
+        death.save({ session }),
+        winner.save({ session }),
+        Duel.deleteMany(
+          {
+            discord_id: { $in: [winner.discord_id, loser.discord_id] }
+          },
+          { session }
+        )
+      ]);
+      if (!is_random_encounter) {
+        await i.update({
+          content: duel_text,
+          embeds: [embed],
+          components: [row],
+          ephemeral: true
+        });
+      }
+    } else {
+      loser.gold -= earnedGold;
+      await Promise.all([
+        winner.save({ session }),
+        loser.save({ session }),
+        Duel.deleteMany(
+          {
+            discord_id: { $in: [winner.discord_id, loser.discord_id] }
+          },
+          { session }
+        )
+      ]);
+      if (!is_random_encounter) {
+        await i.update({
+          content: duel_text,
+          embeds: [embed],
+          components: [row],
+          ephemeral: true
+        });
+      }
+    }
+    const channel = await getChannel(rooms.feed);
+    if (channel) {
+      const duel_text_with_separator = duel_text + LINE_SEPARATOR;
       if (!is_random_encounter) {
         await User.findOneAndUpdate(
           { discord_id: i.user.id, energy_points: { $gt: 0 } },
@@ -401,172 +522,15 @@ const startDuel = async (
           { session }
         );
       }
-    }
-    return;
-  }
-  const otherDuelPlayer = await User.findOne({
-    discord_id: isThereOtherPlayer.discord_id
-  }).session(session);
-  const playerRoll = Math.random();
-  const otherPlayerRoll = Math.random();
-  const playerDamage = parseFloat((playerRoll * user.attack_power).toFixed(2));
-  const otherPlayerDamage = parseFloat(
-    (otherPlayerRoll * otherDuelPlayer.attack_power).toFixed(2)
-  );
-  const isTie = playerDamage === otherPlayerDamage;
-  if (isTie) {
-    await Duel.deleteMany(
-      {
-        discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
-      },
-      { session }
-    );
-    if (!is_random_encounter) {
-      await i.update({
-        embeds: [createNotificationEmbed('Ooops!', 'It is a tie!'), embed],
-        components: [row],
-        ephemeral: true
-      });
-    }
-    return;
-  }
-  const winner = playerDamage > otherPlayerDamage ? user : otherDuelPlayer;
-  const loser = playerDamage > otherPlayerDamage ? otherDuelPlayer : user;
-  const winnerRoll =
-    winner.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
-  const loserRoll =
-    loser.discord_id === i.user.id ? playerRoll : otherPlayerRoll;
-  const winnerDamage =
-    winner.discord_id === i.user.id ? playerDamage : otherPlayerDamage;
-  const loserDamage =
-    loser.discord_id === i.user.id ? playerDamage : otherPlayerDamage;
-  const damageFloat =
-    BASE_DAMAGE +
-    Math.abs(playerDamage - otherPlayerDamage) *
-      (1 - (loser.armor ? armors[loser.armor].dmg_migration : 0)) *
-      10;
-  const lostHealth =
-    loser.health_points - Math.round(loser.health_points - damageFloat);
-  loser.health_points = Math.round(loser.health_points - damageFloat);
-  await loser.save({ session });
-  const isLoserDead = loser.health_points <= 0;
-  const perspective = ['getting_damage', 'damaging'][
-    Math.floor(Math.random() * 2)
-  ];
-  const bound = duel_bounds.find(
-    (b) => damageFloat >= b.lower_bound && damageFloat < b.upper_bound
-  );
-  const boundName = isLoserDead ? 'Elimination' : bound.name;
-  const armor_text = loser.armor
-    ? armor_texts.filter((a) => a['Armor'].includes(loser.armor.toUpperCase()))[
-        Math.floor(Math.random() * 2)
-      ][bound.name]
-    : '';
-  const weapon_text = winner.weapon
-    ? weapon_texts.filter((w) =>
-        w['Weapon'].includes(winner.weapon.toUpperCase())
-      )[0][bound.name]
-    : '';
-  let armory_text = '';
-  if (armor_text && weapon_text) {
-    armory_text = [armor_text, weapon_text][Math.floor(Math.random() * 2)];
-  } else if (armor_text) {
-    armory_text = armor_text;
-  } else if (weapon_text) {
-    armory_text = weapon_text;
-  }
-  let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
-  duel_text = isLoserDead
-    ? `${armory_text}\n${duel_text}`
-    : `${duel_text}\n${armory_text}`;
-  duel_text = `:axe: ${duel_text}`;
-  const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
-  const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
-  duel_text += `\n\n:game_die: :dagger: @kazanan rolled ${bold(
-    winnerRollText
-  )} and dealt ${bold((winnerDamage * 10).toFixed(2))} damage with ${bold(
-    winner.attack_power.toString() + ' AP'
-  )}. @kaybeden rolled ${bold(loserRollText)} and failed to deal ${bold(
-    (loserDamage * 10).toFixed(2)
-  )} damage with ${bold(loser.attack_power.toString() + ' AP')}.`;
-  const earnedGold = isLoserDead
-    ? Math.floor(
-        loser.gold +
-          (loser.armor ? armors[loser.armor].cost : 0) +
-          (loser.weapon ? weapons[loser.weapon].cost : 0)
-      )
-    : Math.floor(loser.gold / 2);
-  duel_text += `\n\n:coin: :mending_heart: @kaybeden has lost ${bold(
-    earnedGold
-  )} Credits and ${bold(lostHealth)} HP.`;
-  duel_text = duel_text
-    .replaceAll('@kazanan', userMention(winner.discord_id))
-    .replaceAll('@kaybeden', userMention(loser.discord_id));
-  winner.gold += earnedGold;
-
-  if (isLoserDead) {
-    const death = new Death({
-      type: 'duel',
-      discord_id: loser.discord_id,
-      death_time: new Date()
-    });
-    await Promise.all([
-      death.save({ session }),
-      winner.save({ session }),
-      Duel.deleteMany(
-        {
-          discord_id: { $in: [winner.discord_id, loser.discord_id] }
-        },
-        { session }
-      )
-    ]);
-    if (!is_random_encounter) {
-      await i.update({
-        content: duel_text,
-        embeds: [embed],
-        components: [row],
-        ephemeral: true
-      });
-    }
-  } else {
-    loser.gold -= earnedGold;
-    await Promise.all([
-      winner.save({ session }),
-      loser.save({ session }),
-      Duel.deleteMany(
-        {
-          discord_id: { $in: [winner.discord_id, loser.discord_id] }
-        },
-        { session }
-      )
-    ]);
-    if (!is_random_encounter) {
-      await i.update({
-        content: duel_text,
-        embeds: [embed],
-        components: [row],
-        ephemeral: true
-      });
-    }
-  }
-  const channel = await getChannel(rooms.feed);
-  if (channel) {
-    const duel_text_with_separator = duel_text + LINE_SEPARATOR;
-    if (!is_random_encounter) {
+      await channel.send(duel_text_with_separator);
+    } else if (!is_random_encounter) {
       await User.findOneAndUpdate(
         { discord_id: i.user.id, energy_points: { $gt: 0 } },
         { $inc: { energy_points: -1 } },
         { session }
       );
     }
-    await channel.send(duel_text_with_separator);
-  } else if (!is_random_encounter) {
-    await User.findOneAndUpdate(
-      { discord_id: i.user.id, energy_points: { $gt: 0 } },
-      { $inc: { energy_points: -1 } },
-      { session }
-    );
-  }
+  });
 };
 
 const play = async (interaction) => {
@@ -721,10 +685,10 @@ const play = async (interaction) => {
     });
 
     collector.on('collect', async (i) => {
-      const session = await mongoose.startSession();
-      try {
-        await session.withTransaction(async () => {
-          // TODO: Other users should not see other users' bot responses. Check this later.
+      if (i.customId === 'duel') {
+        let isThereOtherPlayer;
+        const session = await mongoose.startSession();
+        try {
           if (i.user.id !== interaction.user.id) {
             await i.reply({
               content: 'You are not allowed to use this button!',
@@ -735,7 +699,7 @@ const play = async (interaction) => {
           const user = await User.findOne({
             discord_id: i.user.id,
             health_points: { $gt: 0 }
-          }).session(session);
+          });
           if (!user) {
             await i.update({
               content: 'You have died. You cannot play anymore.',
@@ -745,49 +709,112 @@ const play = async (interaction) => {
             });
             throw new Error('User is dead.');
           }
-          if (i.customId === 'status') {
-            try {
-              embed = await createEmbed(user);
-              await i.update({
-                embeds: [embed],
-                components: [row],
-                ephemeral: true
-              });
-            } catch (err) {
-              console.error(err);
-              embed = await createEmbed(user);
-              await i.update({
-                embeds: [embed],
-                components: [row],
-                ephemeral: true
-              });
-            }
-          } else if (i.customId === 'duel') {
-            await startDuel(session, user, i, embed, row);
-          } else if (i.customId === 'random_encounter') {
-            if (user.energy_points <= 0) {
-              embed = await createEmbed(user);
-              await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Oops!',
-                    'You do not have enough EP!'
-                  ),
-                  embed
-                ],
-                components: [row],
-                ephemeral: true
-              });
-              return;
-            }
-            user.energy_points = Math.max(0, user.energy_points - 1);
-            let random_number = Math.floor(Math.random() * randoms.length);
-            let random = randoms[random_number];
-            const channel =
-              (await client.channels.cache.get(rooms.feed)) ||
-              (await client.channels.fetch(rooms.feed));
+          const isUserDueled = await Duel.findOne({
+            discord_id: i.user.id
+          });
+          if (isUserDueled) {
+            embed = await createEmbed(user);
+            await i.update({
+              content: '',
+              embeds: [
+                createNotificationEmbed(
+                  'Hurray!',
+                  'You are already in battle queue!'
+                ),
+                embed
+              ],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          if (user.energy_points <= 0) {
+            embed = await createEmbed(user);
+            await i.update({
+              embeds: [
+                createNotificationEmbed('Oops!', 'You do not have enough EP!'),
+                embed
+              ],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          isThereOtherPlayer = await Duel.findOneAndUpdate(
+            {
+              discord_id: { $ne: i.user.id },
+              is_duel_in_progress: false
+            },
+            { is_duel_in_progress: true }
+          )
+            .sort({ doc_created_at: 1 })
+            .lean();
+          await startDuel(
+            session,
+            user,
+            i,
+            embed,
+            row,
+            false,
+            isThereOtherPlayer
+          );
+        } catch (error) {
+          console.error('Transaction aborted:', error);
+        } finally {
+          if (isThereOtherPlayer) {
+            await Duel.findOneAndUpdate(
+              { discord_id: isThereOtherPlayer.discord_id },
+              { is_duel_in_progress: false },
+              { upsert: false }
+            );
+          }
+          await session.endSession();
+        }
+      } else if (i.customId === 'random_encounter') {
+        let isThereOtherPlayer;
+        const session = await mongoose.startSession();
+        try {
+          if (i.user.id !== interaction.user.id) {
+            await i.reply({
+              content: 'You are not allowed to use this button!',
+              ephemeral: true
+            });
+            throw new Error('User is not allowed to use this button!');
+          }
+          const user = await User.findOne({
+            discord_id: i.user.id,
+            health_points: { $gt: 0 }
+          });
+          if (!user) {
+            await i.update({
+              content: 'You have died. You cannot play anymore.',
+              embeds: [],
+              components: [],
+              ephemeral: true
+            });
+            throw new Error('User is dead.');
+          }
+          if (user.energy_points <= 0) {
+            embed = await createEmbed(user);
+            await i.update({
+              embeds: [
+                createNotificationEmbed('Oops!', 'You do not have enough EP!'),
+                embed
+              ],
+              components: [row],
+              ephemeral: true
+            });
+            return;
+          }
+          user.energy_points = Math.max(0, user.energy_points - 1);
+          let random_number = Math.floor(Math.random() * randoms.length);
+          let random = randoms[random_number];
+          const channel =
+            (await client.channels.cache.get(rooms.feed)) ||
+            (await client.channels.fetch(rooms.feed));
 
-            if (random_number >= 0 && random_number <= 44) {
+          if (random_number >= 0 && random_number <= 44) {
+            await session.withTransaction(async () => {
               const outcomes = random.outcome.split(',');
               const outcomesPrivate = [];
               const outcomesFeed = [];
@@ -881,7 +908,7 @@ const play = async (interaction) => {
                     if (lost_credits_capped === 0) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                          `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.
+                        `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.
                         `);
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
@@ -926,8 +953,8 @@ const play = async (interaction) => {
                       if (lost_credit_capped === 0) {
                         // prettier-ignore
                         outcomesPrivateZero.push(
-                            `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.`
-                          );
+                          `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.`
+                        );
                         outcomesFeedZero.push(
                           `:exclamation: ${userMention(
                             user.discord_id
@@ -977,8 +1004,8 @@ const play = async (interaction) => {
                       if (lost_credit_capped === 0) {
                         // prettier-ignore
                         outcomesPrivateZero.push(
-                            `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.`
-                          );
+                          `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.`
+                        );
                         outcomesFeedZero.push(
                           `:exclamation: ${userMention(
                             user.discord_id
@@ -1118,8 +1145,8 @@ const play = async (interaction) => {
                     );
                     // prettier-ignore
                     outcomesPrivateZero.push(
-                        `:exclamation: You couldn't gain the HP because your health is already at ${bold('100')}.`
-                      );
+                      `:exclamation: You couldn't gain the HP because your health is already at ${bold('100')}.`
+                    );
                     outcomesFeedZero.push(
                       `:exclamation: ${userMention(
                         user.discord_id
@@ -1133,8 +1160,8 @@ const play = async (interaction) => {
                     if (user.energy_points === BASE_ENERGY_POINTS) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                          ':exclamation: You couldn\'t gain the EP because his energy is already at maximum.'
-                        );
+                        ':exclamation: You couldn\'t gain the EP because his energy is already at maximum.'
+                      );
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
                           user.discord_id
@@ -1158,8 +1185,8 @@ const play = async (interaction) => {
                     if (user.energy_points === BASE_ENERGY_POINTS) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                          `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
-                        );
+                        `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
+                      );
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
                           user.discord_id
@@ -1185,8 +1212,8 @@ const play = async (interaction) => {
                     if (user.energy_points === BASE_ENERGY_POINTS) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                          `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
-                        );
+                        `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
+                      );
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
                           user.discord_id
@@ -1410,7 +1437,7 @@ const play = async (interaction) => {
                   ? `\n\n${outcomesFeedZero.join('')}`
                   : '';
                 await channel.send(
-                  `:scroll: ${feedWithoutOutcome}\n${outcomesFeed.join(
+                  `:speech_balloon: ${feedWithoutOutcome}\n${outcomesFeed.join(
                     ''
                   )}${outcomesFeedZeroText}${LINE_SEPARATOR}`.replaceAll(
                     '\n\n',
@@ -1427,7 +1454,7 @@ const play = async (interaction) => {
               await i.update({
                 embeds: [
                   new EmbedBuilder().setDescription(
-                    `:scroll: ${italic(
+                    `:speech_balloon: ${italic(
                       random.scenario
                     )}\n\n<:bits:1138072538384171028>${
                       random.bits
@@ -1436,51 +1463,41 @@ const play = async (interaction) => {
                 ],
                 ephemeral: true
               });
-            } else {
-              const isThereOtherPlayer = await Duel.findOne(
-                {
-                  discord_id: { $ne: i.user.id }
-                },
-                null,
-                { session }
-              ).sort({ doc_created_at: 1 });
-              if (
-                (random_number >= 45 && random_number <= 49) ||
-                !isThereOtherPlayer
-              ) {
-                if (random_number >= 50) {
-                  random_number = Math.floor(Math.random() * 5 + 45);
-                  random = randoms[random_number];
-                }
-                if (channel) {
-                  const feedWithoutOutcome = random.feed.replaceAll(
-                    '@xxx',
-                    userMention(user.discord_id)
-                  );
-                  await Promise.all([
-                    channel.send(
-                      `:scroll: ${feedWithoutOutcome}\n\n${bold(
-                        random.outcome
-                      )}${LINE_SEPARATOR}`
-                    ),
-                    i.update({
-                      embeds: [
-                        new EmbedBuilder().setDescription(
-                          `:scroll: ${italic(
-                            random.scenario
-                          )}\n\n<:bits:1138072538384171028>${
-                            random.bits
-                          }\n\n${bold(random.outcome)}`
-                        )
-                      ],
-                      ephemeral: true
-                    })
-                  ]);
-                } else {
-                  await i.update({
+              await user.save({ session });
+            });
+          } else {
+            isThereOtherPlayer = await Duel.findOneAndUpdate(
+              {
+                discord_id: { $ne: i.user.id },
+                is_duel_in_progress: false
+              },
+              { is_duel_in_progress: true }
+            )
+              .sort({ doc_created_at: 1 })
+              .lean();
+            if (
+              (random_number >= 45 && random_number <= 49) ||
+              !isThereOtherPlayer
+            ) {
+              if (random_number >= 50) {
+                random_number = Math.floor(Math.random() * 5 + 45);
+                random = randoms[random_number];
+              }
+              if (channel) {
+                const feedWithoutOutcome = random.feed.replaceAll(
+                  '@xxx',
+                  userMention(user.discord_id)
+                );
+                await Promise.all([
+                  channel.send(
+                    `:speech_balloon: ${feedWithoutOutcome}\n\n${bold(
+                      random.outcome
+                    )}${LINE_SEPARATOR}`
+                  ),
+                  i.update({
                     embeds: [
                       new EmbedBuilder().setDescription(
-                        `:scroll: ${italic(
+                        `:speech_balloon: ${italic(
                           random.scenario
                         )}\n\n<:bits:1138072538384171028>${
                           random.bits
@@ -1488,261 +1505,340 @@ const play = async (interaction) => {
                       )
                     ],
                     ephemeral: true
-                  });
-                }
-              } else if (random_number >= 50) {
-                console.log('Battle encounter');
-                if (channel) {
-                  const feedWithMention = random.feed.replaceAll(
-                    '@xxx',
-                    userMention(user.discord_id)
-                  );
-                  await Promise.all([
-                    channel.send(`${feedWithMention}${LINE_SEPARATOR}`),
-                    i.update({
-                      embeds: [
-                        new EmbedBuilder().setDescription(
-                          `:scroll: ${italic(random.scenario)}\n\n`
-                        )
-                      ],
-                      ephemeral: true
-                    })
-                  ]);
-                } else {
-                  await i.update({
+                  })
+                ]);
+              } else {
+                await i.update({
+                  embeds: [
+                    new EmbedBuilder().setDescription(
+                      `:speech_balloon: ${italic(
+                        random.scenario
+                      )}\n\n<:bits:1138072538384171028>${random.bits}\n\n${bold(
+                        random.outcome
+                      )}`
+                    )
+                  ],
+                  ephemeral: true
+                });
+              }
+            } else if (random_number >= 50) {
+              console.log('Battle encounter');
+              if (channel) {
+                const feedWithMention = random.feed.replaceAll(
+                  '@xxx',
+                  userMention(user.discord_id)
+                );
+                await Promise.all([
+                  channel.send(
+                    `:speech_balloon: ${feedWithMention}${LINE_SEPARATOR}`
+                  ),
+                  i.update({
                     embeds: [
                       new EmbedBuilder().setDescription(
-                        `:scroll: ${italic(random.scenario)}\n\n`
+                        `:speech_balloon: ${italic(random.scenario)}\n\n`
                       )
                     ],
                     ephemeral: true
-                  });
-                }
-                await startDuel(session, user, i, embed, row, true);
+                  })
+                ]);
+              } else {
+                await i.update({
+                  embeds: [
+                    new EmbedBuilder().setDescription(
+                      `:speech_balloon: ${italic(random.scenario)}\n\n`
+                    )
+                  ],
+                  ephemeral: true
+                });
               }
+              await startDuel(
+                session,
+                user,
+                i,
+                embed,
+                row,
+                true,
+                isThereOtherPlayer
+              );
             }
             await user.save({ session });
-          } else if (i.customId === 'shop') {
-            try {
-              await i.update({
-                embeds: [createShopEmbed(user)],
-                components: [extraRows.shop],
+          }
+        } catch (error) {
+          console.error('Transaction aborted:', error);
+        } finally {
+          if (isThereOtherPlayer) {
+            await Duel.findOneAndUpdate(
+              { discord_id: isThereOtherPlayer.discord_id },
+              { is_duel_in_progress: false },
+              { upsert: false }
+            );
+          }
+          await session.endSession();
+        }
+      } else {
+        const session = await mongoose.startSession();
+        try {
+          await session.withTransaction(async () => {
+            // TODO: Other users should not see other users' bot responses. Check this later.
+            if (i.user.id !== interaction.user.id) {
+              await i.reply({
+                content: 'You are not allowed to use this button!',
                 ephemeral: true
               });
-            } catch (err) {
-              console.error(err);
-              await i.update({
-                content: 'There has been an error!',
-                embeds: [createShopEmbed(user)],
-                components: [row],
-                ephemeral: true
-              });
+              throw new Error('User is not allowed to use this button!');
             }
-          } else if (i.customId === 'buy_potion') {
-            if (user.gold < user.health_potion_cost) {
+            const user = await User.findOne({
+              discord_id: i.user.id,
+              health_points: { $gt: 0 }
+            }).session(session);
+            if (!user) {
               await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Ooops!',
-                    'You do not have enough Credits to buy a repair kit!'
-                  ),
-                  createShopEmbed(user)
-                ],
-                components: [extraRows.shop],
+                content: 'You have died. You cannot play anymore.',
+                embeds: [],
+                components: [],
                 ephemeral: true
               });
-            } else {
-              user.gold -= user.health_potion_cost;
-              user.health_points = Math.min(user.health_points + 33, 100);
-              user.health_potion_cost *= 2;
+              throw new Error('User is dead.');
+            }
+            if (i.customId === 'status') {
+              try {
+                embed = await createEmbed(user);
+                await i.update({
+                  embeds: [embed],
+                  components: [row],
+                  ephemeral: true
+                });
+              } catch (err) {
+                console.error(err);
+                embed = await createEmbed(user);
+                await i.update({
+                  embeds: [embed],
+                  components: [row],
+                  ephemeral: true
+                });
+              }
+            } else if (i.customId === 'shop') {
+              try {
+                await i.update({
+                  embeds: [createShopEmbed(user)],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+              } catch (err) {
+                console.error(err);
+                await i.update({
+                  content: 'There has been an error!',
+                  embeds: [createShopEmbed(user)],
+                  components: [row],
+                  ephemeral: true
+                });
+              }
+            } else if (i.customId === 'buy_potion') {
+              if (user.gold < user.health_potion_cost) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You do not have enough Credits to buy a repair kit!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+              } else {
+                user.gold -= user.health_potion_cost;
+                user.health_points = Math.min(user.health_points + 33, 100);
+                user.health_potion_cost *= 2;
+                await user.save({ session });
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Success!',
+                      'You have bought and used a repair kit!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+              }
+            } else if (i.customId === 'buying') {
+              createExtraRows(extraRows, 'buying');
+              await i.update({
+                embeds: [createShopEmbed(user)],
+                components: [extraRows.buying],
+                ephemeral: true
+              });
+            } else if (i.customId === 'buy_weapon') {
+              if (user.weapon) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You already have a weapon. Sell it first to buy another one!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+              } else {
+                createExtraRows(extraRows, 'buy_weapon', user);
+                await i.update({
+                  embeds: [createShopEmbed(user)],
+                  components: [extraRows.buy_weapon],
+                  ephemeral: true
+                });
+              }
+            } else if (i.customId === 'sell_weapon_confirm') {
+              if (!user.weapon) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You do not have a weapon to sell!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+                return;
+              }
+              const weapon = Object.values(weapons).find(
+                (w) => w.name === user.weapon
+              );
+              user.gold += Math.floor(weapon.cost / 2);
+              user.weapon = null;
+              user.attack_power = BASE_ATTACK_POWER;
               await user.save({ session });
               await i.update({
                 embeds: [
                   createNotificationEmbed(
                     'Success!',
-                    'You have bought and used a repair kit!'
+                    'You have sold your weapon for half of its price!'
                   ),
                   createShopEmbed(user)
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
               });
-            }
-          } else if (i.customId === 'buying') {
-            createExtraRows(extraRows, 'buying');
-            await i.update({
-              embeds: [createShopEmbed(user)],
-              components: [extraRows.buying],
-              ephemeral: true
-            });
-          } else if (i.customId === 'buy_weapon') {
-            if (user.weapon) {
-              await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Ooops!',
-                    'You already have a weapon. Sell it first to buy another one!'
-                  ),
-                  createShopEmbed(user)
-                ],
-                components: [extraRows.shop],
-                ephemeral: true
-              });
-            } else {
-              createExtraRows(extraRows, 'buy_weapon', user);
+            } else if (i.customId === 'sell_weapon_cancel') {
               await i.update({
                 embeds: [createShopEmbed(user)],
-                components: [extraRows.buy_weapon],
+                components: [extraRows.shop],
                 ephemeral: true
               });
-            }
-          } else if (i.customId === 'sell_weapon_confirm') {
-            if (!user.weapon) {
+            } else if (i.customId === 'sell_weapon') {
+              if (!user.weapon) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You do not have a weapon to sell!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+                return;
+              }
+              createExtraRows(extraRows, 'weapon_confirm', user);
+              await i.update({
+                embeds: [createConfirmEmbed(user, 'weapon')],
+                components: [extraRows.weapon_confirm],
+                ephemeral: true
+              });
+            } else if (i.customId === 'buy_armor') {
+              if (user.armor) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You already have an armor. Sell it first to buy another one!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+              } else {
+                createExtraRows(extraRows, 'buy_armor', user);
+                await i.update({
+                  embeds: [createShopEmbed(user)],
+                  components: [extraRows.buy_armor],
+                  ephemeral: true
+                });
+              }
+            } else if (i.customId === 'sell_armor_confirm') {
+              if (!user.armor) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You do not have an armor to sell!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+                return;
+              }
+              const armor = Object.values(armors).find(
+                (a) => a.name === user.armor
+              );
+              user.gold += Math.floor(armor.cost / 2);
+              user.armor = null;
+              await user.save({ session });
               await i.update({
                 embeds: [
                   createNotificationEmbed(
-                    'Ooops!',
-                    'You do not have a weapon to sell!'
+                    'Success!',
+                    'You have sold your armor for half of its price!'
                   ),
                   createShopEmbed(user)
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
               });
-              return;
-            }
-            const weapon = Object.values(weapons).find(
-              (w) => w.name === user.weapon
-            );
-            user.gold += Math.floor(weapon.cost / 2);
-            user.weapon = null;
-            user.attack_power = BASE_ATTACK_POWER;
-            await user.save({ session });
-            await i.update({
-              embeds: [
-                createNotificationEmbed(
-                  'Success!',
-                  'You have sold your weapon for half of its price!'
-                ),
-                createShopEmbed(user)
-              ],
-              components: [extraRows.shop],
-              ephemeral: true
-            });
-          } else if (i.customId === 'sell_weapon_cancel') {
-            await i.update({
-              embeds: [createShopEmbed(user)],
-              components: [extraRows.shop],
-              ephemeral: true
-            });
-          } else if (i.customId === 'sell_weapon') {
-            if (!user.weapon) {
-              await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Ooops!',
-                    'You do not have a weapon to sell!'
-                  ),
-                  createShopEmbed(user)
-                ],
-                components: [extraRows.shop],
-                ephemeral: true
-              });
-              return;
-            }
-            createExtraRows(extraRows, 'weapon_confirm', user);
-            await i.update({
-              embeds: [createConfirmEmbed(user, 'weapon')],
-              components: [extraRows.weapon_confirm],
-              ephemeral: true
-            });
-          } else if (i.customId === 'buy_armor') {
-            if (user.armor) {
-              await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Ooops!',
-                    'You already have an armor. Sell it first to buy another one!'
-                  ),
-                  createShopEmbed(user)
-                ],
-                components: [extraRows.shop],
-                ephemeral: true
-              });
-            } else {
-              createExtraRows(extraRows, 'buy_armor', user);
+            } else if (i.customId === 'sell_armor_cancel') {
               await i.update({
                 embeds: [createShopEmbed(user)],
-                components: [extraRows.buy_armor],
-                ephemeral: true
-              });
-            }
-          } else if (i.customId === 'sell_armor_confirm') {
-            if (!user.armor) {
-              await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Ooops!',
-                    'You do not have an armor to sell!'
-                  ),
-                  createShopEmbed(user)
-                ],
                 components: [extraRows.shop],
                 ephemeral: true
               });
-              return;
-            }
-            const armor = Object.values(armors).find(
-              (a) => a.name === user.armor
-            );
-            user.gold += Math.floor(armor.cost / 2);
-            user.armor = null;
-            await user.save({ session });
-            await i.update({
-              embeds: [
-                createNotificationEmbed(
-                  'Success!',
-                  'You have sold your armor for half of its price!'
-                ),
-                createShopEmbed(user)
-              ],
-              components: [extraRows.shop],
-              ephemeral: true
-            });
-          } else if (i.customId === 'sell_armor_cancel') {
-            await i.update({
-              embeds: [createShopEmbed(user)],
-              components: [extraRows.shop],
-              ephemeral: true
-            });
-          } else if (i.customId === 'sell_armor') {
-            if (!user.armor) {
+            } else if (i.customId === 'sell_armor') {
+              if (!user.armor) {
+                await i.update({
+                  embeds: [
+                    createNotificationEmbed(
+                      'Ooops!',
+                      'You do not have an armor to sell!'
+                    ),
+                    createShopEmbed(user)
+                  ],
+                  components: [extraRows.shop],
+                  ephemeral: true
+                });
+                return;
+              }
+              createExtraRows(extraRows, 'armor_confirm', user);
               await i.update({
-                embeds: [
-                  createNotificationEmbed(
-                    'Ooops!',
-                    'You do not have an armor to sell!'
-                  ),
-                  createShopEmbed(user)
-                ],
-                components: [extraRows.shop],
+                embeds: [createConfirmEmbed(user, 'armor')],
+                components: [extraRows.armor_confirm],
                 ephemeral: true
               });
-              return;
             }
-            createExtraRows(extraRows, 'armor_confirm', user);
-            await i.update({
-              embeds: [createConfirmEmbed(user, 'armor')],
-              components: [extraRows.armor_confirm],
-              ephemeral: true
-            });
-          }
-        });
-      } catch (error) {
-        // await session.abortTransaction();
-        console.error('Transaction aborted:', error);
-      } finally {
-        await session.endSession();
+          });
+        } catch (error) {
+          // await session.abortTransaction();
+          console.error('Transaction aborted:', error);
+        } finally {
+          await session.endSession();
+        }
       }
     });
   } catch (err) {
