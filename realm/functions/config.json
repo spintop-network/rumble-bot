@@ -3,10 +3,5 @@
     "name": "Ep_Regen",
     "private": false,
     "disable_arg_logs": true
-  },
-  {
-    "name": "sudden_death",
-    "private": false,
-    "disable_arg_logs": true
   }
 ]

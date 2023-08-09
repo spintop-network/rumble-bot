@@ -88,7 +88,7 @@ const createConfirmEmbed = (user, type) => {
 
   return new EmbedBuilder().setDescription(
     `You are selling your ${bold(toolText)} for ${bold(
-      tool.cost / 2
+      Math.floor(tool.cost / 2)
     )} Credits. Are you sure?`
   );
 };
@@ -476,10 +476,10 @@ const startDuel = async (
     armory_text = weapon_text;
   }
   let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
-  duel_text = `:axe: ${duel_text}`;
   duel_text = isLoserDead
     ? `${armory_text}\n${duel_text}`
     : `${duel_text}\n${armory_text}`;
+  duel_text = `:axe: ${duel_text}`;
   const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
   const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
   duel_text += `\n\n:game_die: :dagger: @kazanan rolled ${bold(
@@ -829,12 +829,12 @@ const play = async (interaction) => {
                   } else if (out.includes('an ep')) {
                     user.energy_points = Math.max(0, user.energy_points - 1);
                     outcomesPrivate.push(
-                      ':low_battery: You have lost an EP.\n'
+                      `:low_battery: You have lost ${bold('an EP')}.`
                     );
                     outcomesFeed.push(
                       `:low_battery: ${userMention(
                         user.discord_id
-                      )} has lost ${bold('an')} EP.\n`
+                      )} has lost ${bold('an EP')}.\n`
                     );
                   } else if (out.includes('all ep')) {
                     user.energy_points = 0;
@@ -844,17 +844,17 @@ const play = async (interaction) => {
                     outcomesFeed.push(
                       `:low_battery: ${userMention(
                         user.discord_id
-                      )} has lost ${bold('all')} EP.\n`
+                      )} has lost ${bold('all EP')}.\n`
                     );
-                  } else if (out.includes('two eps')) {
+                  } else if (out.includes('2 eps')) {
                     user.energy_points = Math.max(0, user.energy_points - 2);
                     outcomesPrivate.push(
-                      `:low_battery: You have lost ${bold('two')} EP.`
+                      `:low_battery: You have lost ${bold('two EP')}.`
                     );
                     outcomesFeed.push(
                       `:low_battery: ${userMention(
                         user.discord_id
-                      )} has lost ${bold('two')} EP.\n`
+                      )} has lost ${bold('two EP')}.\n`
                     );
                   } else if (
                     out.includes('credits') &&
@@ -1130,24 +1130,26 @@ const play = async (interaction) => {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        `:battery: You have regenerated ${bold('an')} EP.`
+                        `:battery: You have regenerated ${bold('an EP')}.`
                       );
                       outcomesFeed.push(
                         `:battery: ${userMention(
                           user.discord_id
-                        )} has regenerated ${bold('an')} EP.\n`
+                        )} has regenerated ${bold('an EP')}.\n`
                       );
                     }
                   } else if (out.includes('two eps')) {
                     if (user.energy_points === BASE_ENERGY_POINTS) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                          ':exclamation: You couldn\'t gain the EP because his energy is already at maximum.'
+                          `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
                         );
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
                           user.discord_id
-                        )} couldn't gain the EP because his energy is already at maximum.\n`
+                        )} couldn't gain the ${bold(
+                          'EP'
+                        )} because his energy is already at maximum.\n`
                       );
                     } else {
                       user.energy_points = Math.min(
@@ -1155,24 +1157,26 @@ const play = async (interaction) => {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        `:battery: You have regenerated ${bold('two')} EP.`
+                        `:battery: You have regenerated ${bold('two EP')}.`
                       );
                       outcomesFeed.push(
                         `:battery: ${userMention(
                           user.discord_id
-                        )} has regenerated ${bold('two')} EP.\n`
+                        )} has regenerated ${bold('two EP')}.\n`
                       );
                     }
                   } else if (out.includes('all eps')) {
                     if (user.energy_points === BASE_ENERGY_POINTS) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                          ':exclamation: You couldn\'t gain the EP because his energy is already at maximum.'
+                          `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
                         );
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
                           user.discord_id
-                        )} couldn't gain the EP because his energy is already at maximum.\n`
+                        )} couldn't gain the ${bold(
+                          'EP'
+                        )} because his energy is already at maximum.\n`
                       );
                     } else {
                       user.energy_points = Math.min(
@@ -1180,12 +1184,12 @@ const play = async (interaction) => {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        `:battery: You have regenerated ${bold('all')} EP.`
+                        `:battery: You have regenerated ${bold('all EP')} EP.`
                       );
                       outcomesFeed.push(
                         `:battery: ${userMention(
                           user.discord_id
-                        )} has regenerated ${bold('all')} EP.\n`
+                        )} has regenerated ${bold('all EP')}.\n`
                       );
                     }
                   }

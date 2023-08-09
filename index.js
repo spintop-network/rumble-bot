@@ -93,9 +93,9 @@ setInterval(async () => {
         if (channel) {
           if (sudden_deaths.length) {
             const suddenDeathEmbed = new EmbedBuilder()
-              .setTitle('Sudden Deaths')
+              .setTitle(':rotating_light: Overload Protocol :rotating_light:')
               .setDescription(
-                `Some players have suddenly died!\n\n${sudden_deaths.map(
+                `These players have suddenly died!\n\n${sudden_deaths.map(
                   (i) => `${userMention(i.discord_id)}\n`
                 )}`
               );
@@ -105,7 +105,7 @@ setInterval(async () => {
             const inactivityDeathEmbed = new EmbedBuilder()
               .setTitle('Inactivity Deaths')
               .setDescription(
-                `Some players have died because of inactivity!\n\n${inactivity_deaths.map(
+                `These players have died because of inactivity:\n\n${inactivity_deaths.map(
                   (i) => `${userMention(i.discord_id)}\n`
                 )}`
               );
