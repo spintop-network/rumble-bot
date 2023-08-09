@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('../models/user');
 const Stat = require('../models/stat');
+const Config = require('../models/config');
 const {
   BASE_ATTACK_POWER,
   BASE_ENERGY_POINTS,
@@ -10,6 +11,14 @@ const {
 const register = async (interaction) => {
   const session = await mongoose.startSession();
   try {
+    const config = await Config.findOne({ id: 0 });
+    if (config.is_register_closed) {
+      await interaction.reply({
+        content: 'Registration is closed!',
+        ephemeral: true
+      });
+      return;
+    }
     await session.withTransaction(async () => {
       const user = await User.findOne({
         discord_id: interaction.user.id

@@ -125,7 +125,7 @@ client.once(Events.ClientReady, async (c) => {
       ':large_blue_diamond: Instant elimination\n' +
       '\n' +
       bold(':diamond_shape_with_a_dot_inside: Overload Protocol:') +
-      ' Spintop’s Cobot Rumble will take 7 days in total; from the 9th of August to the 16th of August, there will be no exception. The main reason is I’ve created this artificial dimension to host you for 7 days tops. After the 16th of August, I will activate my beloved Overload Protocol; this beauty will damage you 10 HP every 8 hours until your HP reaches 0. Your Cobot will eventually become a scrap pile if the rumble doesn’t end in 7 days.\n' +
+      ' Spintop’s Cobot Rumble will take 7 days in total; from the 9th of August to the 16th of August, there will be no exception. The main reason is I’ve created this artificial dimension to host you for 7 days tops. After the 16th of August, I will activate my beloved Overload Protocol; this beauty will damage you 5 HP every 4 hours until your HP reaches 0. Your Cobot will eventually become a scrap pile if the rumble doesn’t end in 7 days.\n' +
       '\n' +
       bold('Rewards:') +
       '\n' +
@@ -140,7 +140,7 @@ client.once(Events.ClientReady, async (c) => {
   );
 
   const gameEmbed = new EmbedBuilder().setDescription(
-    'Start to play or see leaderboard!'
+    'Time to show your worth.'
   );
 
   const register = new ButtonBuilder()

@@ -7,6 +7,7 @@ const dotenv = require('dotenv');
 const { client } = require('./client.js');
 const Notification = require('./models/notification');
 const User = require('./models/user');
+const Duel = require('./models/duel');
 const Config = require('./models/config');
 const register = require('./buttons/register');
 const play = require('./buttons/play');
@@ -147,7 +148,7 @@ setInterval(async () => {
         {
           title: '',
           description: `:mending_heart: These players have lost ${bold(
-            '10 HP'
+            '5 HP'
           )} since overload protocol is active:\n\n${sudden_health_reduced
             .map((i) => `${userMention(i.discord_id)}\n`)
             .join('')}`,
@@ -215,7 +216,7 @@ setInterval(async () => {
                 },
                 {
                   $sort: {
-                    'deaths.death_time': -1,
+                    'deaths.doc_created_at': -1,
                     health_points: -1,
                     'stats.kills': -1,
                     'stats.inflicted_damage': -1
@@ -295,3 +296,24 @@ setInterval(async () => {
     await session.endSession();
   }
 }, 5000);
+
+setInterval(async () => {
+  if (mongoose.connection.readyState !== 1) return;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await Duel.updateMany(
+        {
+          is_duel_in_progress: true,
+          doc_updated_at: { $lt: new Date(Date.now() - 1000 * 60) }
+        },
+        { is_duel_in_progress: false },
+        { session }
+      );
+    });
+  } catch (error) {
+    console.error('Transaction aborted:', error);
+  } finally {
+    await session.endSession();
+  }
+}, 10000);

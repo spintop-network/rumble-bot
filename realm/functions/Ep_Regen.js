@@ -17,7 +17,9 @@ const sudden_death = async (
   const bulkOperations = will_die_users.map((user) => ({
     type: 'sudden_death',
     discord_id: user.discord_id,
-    death_time: new Date()
+    death_time: new Date(),
+    doc_created_at: new Date(),
+    doc_updated_at: new Date()
   }));
 
   if (bulkOperations.length > 0) {
@@ -90,7 +92,9 @@ const ep_regen = async (
   const bulkOperations = will_die_users.map((user) => ({
     type: 'inactivity_death',
     discord_id: user.discord_id,
-    death_time: new Date()
+    death_time: new Date(),
+    doc_created_at: new Date(),
+    doc_updated_at: new Date()
   }));
 
   if (bulkOperations.length > 0) {

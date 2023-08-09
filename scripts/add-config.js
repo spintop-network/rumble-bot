@@ -11,11 +11,12 @@ const Config = require('../models/config');
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
-      await Config.deleteMany({});
+      await Config.deleteOne({ id: 0 });
       await Config.create({
         is_game_over: false,
         is_game_started: false,
         is_sudden_death_active: false,
+        is_register_closed: false,
         id: 0
       });
     });

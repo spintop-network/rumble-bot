@@ -9,70 +9,70 @@ const weapons = {
   'Platinum Pan': {
     name: 'Platinum Pan',
     description: 'Platinum Pan',
-    emoji: '<:platinum_pan:1138065863442968657>',
+    emoji: '<:platinum_pan:1138764000675500072>',
     attack_power: 1,
     cost: 50
   },
   'Ballistic Missile Launcher': {
     name: 'Ballistic Missile Launcher',
     description: 'Ballistic Missile Launcher',
-    emoji: '<:ballistic_missile_launcher:1138065479680925767>',
+    emoji: '<:ballistic_missile_launcher:1138763637478137916>',
     attack_power: 2,
     cost: 150
   },
   'N.U.K.A. Laser Cannon': {
     name: 'N.U.K.A. Laser Cannon',
     description: 'N.U.K.A. Laser Cannon',
-    emoji: '<:nuka_laser:1138065808598249562>',
+    emoji: '<:nuka_laser:1138763943846871091>',
     attack_power: 3,
     cost: 250
   },
   'Ion Heavy Artillery': {
     name: 'Ion Heavy Artillery',
     description: 'Ion Heavy Artillery',
-    emoji: '<:ion_heavy_artillery:1138065648199684197>',
+    emoji: '<:ion_heavy_artillery:1138763787873292440>',
     attack_power: 4,
     cost: 350
   },
   'Acrid Plasma Cutter': {
     name: 'Acrid Plasma Cutter',
     description: 'Acrid Plasma Cutter',
-    emoji: '<:acrid_plasma_cutter:1138065202458411049>',
+    emoji: '<:acrid_plasma_cutter:1138763565541621780>',
     attack_power: 5,
     cost: 450
   },
   'EMP Paralyzer': {
     name: 'EMP Paralyzer',
     description: 'EMP Paralyzer',
-    emoji: '<:emp:1136640918133411881>',
+    emoji: '<:emp:1138763743665328188>',
     attack_power: 6,
     cost: 550
   },
   'Nanobot Swarm Guidance System': {
     name: 'Nanobot Swarm Guidance System',
     description: 'Nanobot Swarm Guidance System',
-    emoji: '<:nanobot_swarm_guidance_system:1138071762219839518>',
+    emoji: '<:nanobot_swarm_guidance_system:1138763840973180988>',
     attack_power: 7,
     cost: 650
   },
   'Nuclear Warhead': {
     name: 'Nuclear Warhead',
     description: 'Nuclear Warhead',
-    emoji: '<:nuclear_warhead:1138065758790893709>',
+    emoji: '<:nuclear_warhead:1138763900603613295>',
     attack_power: 8,
     cost: 750
   },
   'Reality Warper': {
     name: 'Reality Warper',
     description: 'Reality Warper',
-    emoji: '<:reality_warper:1138065916790313082>',
+    emoji: '<:reality_warper:1138764041247002624>',
     attack_power: 9,
     cost: 850
   },
   'Super Duper Planet Blower': {
     name: 'Super Duper Planet Blower',
     description: 'Super Duper Planet Blower',
-    emoji: '<:superduper:1136641028363923496>',
+    emoji: '<:superduper:1138764090483941407>',
     attack_power: 10,
     cost: 1000
   }
@@ -109,6 +109,10 @@ const bad_and_good_randoms = xlsx
     const scenario_start = arr[0].indexOf('Scenario:\n');
     const bits_start = arr[0].indexOf('BITS:\n');
     const outcome_start = arr[0].indexOf('Outcome:\n');
+    const outcome = arr[0]
+      .slice(outcome_start)
+      .replace('Outcome:\n', '')
+      .trim();
     return {
       scenario: arr[0]
         .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
@@ -118,8 +122,14 @@ const bad_and_good_randoms = xlsx
         .slice(bits_start, outcome_start)
         .replace('BITS:\n', '')
         .trim(),
-      outcome: arr[0].slice(outcome_start).replace('Outcome:\n', '').trim(),
-      feed: arr[1].replace('Feed:\n', '').trim()
+      outcome,
+      feed: arr[1].replace('Feed:\n', '').trim(),
+      weight: [
+        '-Eliminated',
+        'Upgraded your weapon to Nanobot Swarm Guidance System'
+      ].includes(outcome)
+        ? 1
+        : 2
     };
   });
 
@@ -146,7 +156,8 @@ const neutral_randoms = xlsx
       feed: arr[1]
         .slice(0, arr[1].indexOf('Outcome:'))
         .replace('Feed:\n', '')
-        .trim()
+        .trim(),
+      weight: 2
     };
   });
 const battle_randoms = xlsx
@@ -162,7 +173,8 @@ const battle_randoms = xlsx
         .slice(scenario_start + 'Scenario\n\n'.length)
         .replace('Scenario:\n', '')
         .trim(),
-      feed: arr[1].replace('Feed:\n', '').trim()
+      feed: arr[1].replace('Feed:\n', '').trim(),
+      weight: 2
     };
   });
 
@@ -170,35 +182,35 @@ const armors = {
   'Ballistic Shield': {
     name: 'Ballistic Shield',
     description: 'Ballistic Shield',
-    emoji: '<:ballistic_shield:1136615498981834823>',
+    emoji: '<:ballistic_shield:1138765669798780938>',
     dmg_migration: 0.1,
     cost: 50
   },
   'Titanium Plating': {
     name: 'Titanium Plating',
     description: 'Titanium Plating',
-    emoji: '<:titanium_plating:1136615766876237854>',
+    emoji: '<:titanium_plating:1138766314052276234>',
     dmg_migration: 0.2,
     cost: 125
   },
   'Positron Energy Barrier': {
     name: 'Positron Energy Barrier',
     description: 'Positron Energy Barrier',
-    emoji: '<:positron_energy_barrier:1136615640665444352>',
+    emoji: '<:positron_energy_barrier:1138766130916372500>',
     dmg_migration: 0.3,
     cost: 200
   },
   'Quantum Armor': {
     name: 'Quantum Armor',
     description: 'Quantum Armor',
-    emoji: '<:quantum_armor:1136615691223568394>',
+    emoji: '<:quantum_armor:1138766226898829363>',
     dmg_migration: 0.4,
     cost: 350
   },
   'Gravitational Absorber': {
     name: 'Gravitational Absorber',
     description: 'Gravitational Absorber',
-    emoji: '<:gravitational_absorber:1136615546406830110>',
+    emoji: '<:gravitational_absorber:1138765841492611102>',
     dmg_migration: 0.5,
     cost: 500
   }

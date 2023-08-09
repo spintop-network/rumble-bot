@@ -23,7 +23,8 @@ const User = require('../models/user');
           $set: {
             gold: STARTER_GOLD,
             energy_points: BASE_ENERGY_POINTS,
-            attack_power: BASE_ATTACK_POWER
+            attack_power: BASE_ATTACK_POWER,
+            health_points: 100
           }
         }
       );

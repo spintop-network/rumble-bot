@@ -32,6 +32,26 @@ const Stat = require('../models/stat');
 
 const LINE_SEPARATOR = '\n───────────────────────────────────';
 
+const weighted_number = (options) => {
+  let i;
+
+  const weights = [options[0].weight];
+
+  for (i = 1; i < options.length; i++) {
+    weights[i] = options[i].weight + weights[i - 1];
+  }
+
+  const random = Math.random() * weights[weights.length - 1];
+
+  for (i = 0; i < weights.length; i++) {
+    if (weights[i] > random) {
+      break;
+    }
+  }
+
+  return i;
+};
+
 const createEmbed = async (user) => {
   const weapon = weapons[user.weapon];
   const armor = armors[user.armor];
@@ -73,7 +93,7 @@ const createEmbed = async (user) => {
         inline: true
       },
       {
-        name: '<:repairkit:1136615732931723324> Repair Kit Cost',
+        name: '<:repairkit:1138876531691757728> Repair Kit Cost',
         value: `${user.health_potion_cost}`,
         inline: true
       },
@@ -123,7 +143,7 @@ const createShopEmbed = (user) => {
         value: '\n'
       },
       {
-        name: '<:repairkit:1136615732931723324> Repair Kit',
+        name: '<:repairkit:1138876531691757728> Repair Kit',
         value: `${user.health_potion_cost}`
       },
       {
@@ -593,7 +613,7 @@ const play = async (interaction) => {
       return;
     }
     // TODO: Get this from a global state.
-    const isGameStarted = process.env.NODE_ENV !== 'production';
+    const isGameStarted = true;
     if (!isGameStarted) {
       await interaction.editReply({
         content: 'The game has not started yet!',
@@ -843,7 +863,7 @@ const play = async (interaction) => {
             return;
           }
           user.energy_points = Math.max(0, user.energy_points - 1);
-          let random_number = Math.floor(Math.random() * randoms.length);
+          let random_number = weighted_number(randoms);
           let random = randoms[random_number];
           const channel =
             (await client.channels.cache.get(rooms.feed)) ||
@@ -1495,7 +1515,7 @@ const play = async (interaction) => {
                   new EmbedBuilder().setDescription(
                     `:speech_balloon: ${italic(
                       random.scenario
-                    )}\n\n<:bits:1138072538384171028>${
+                    )}\n\n<:bits:1138765781065285662>${
                       random.bits
                     }${outcomesPrivateText}${outcomesPrivateZeroText}`
                   )
@@ -1542,7 +1562,7 @@ const play = async (interaction) => {
                       new EmbedBuilder().setDescription(
                         `:speech_balloon: ${italic(
                           random.scenario
-                        )}\n\n<:bits:1138072538384171028>${
+                        )}\n\n<:bits:1138765781065285662>${
                           random.bits
                         }\n\n${bold('Result:')}${random.outcome}`
                       )
@@ -1556,7 +1576,7 @@ const play = async (interaction) => {
                     new EmbedBuilder().setDescription(
                       `:speech_balloon: ${italic(
                         random.scenario
-                      )}\n\n<:bits:1138072538384171028>${random.bits}\n\n${bold(
+                      )}\n\n<:bits:1138765781065285662>${random.bits}\n\n${bold(
                         'Result:'
                       )}${random.outcome}
                       )}`
