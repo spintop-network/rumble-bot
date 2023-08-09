@@ -93,7 +93,7 @@ const leaderboard = async (interaction) => {
         },
         {
           $sort: {
-            'deaths.death_time': -1,
+            'deaths.doc_created_at': -1,
             health_points: -1,
             'stats.kills': -1,
             'stats.inflicted_damage': -1
