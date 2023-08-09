@@ -277,7 +277,6 @@ const createRow = (custom_ids = ['status'], user) => {
   return new ActionRowBuilder().addComponents(
     ...custom_ids.reduce((acc, id) => {
       const rowItem = buttons[id];
-      console.log(rowItem.customId);
       if (['weapon_list', 'armor_list'].includes(id)) {
         acc.push(
           new StringSelectMenuBuilder()
@@ -833,7 +832,6 @@ const play = async (interaction) => {
               const outcomesFeedZero = [];
               for await (const outcome of outcomes) {
                 const out = outcome.trim().toLowerCase();
-                console.log(out);
                 if (out.includes('lost')) {
                   if (out.includes('hp')) {
                     const lost_hp = out.split(' ')[1].trim();
@@ -1348,7 +1346,6 @@ const play = async (interaction) => {
                       .replace('(armor)', '')
                       .replaceAll('\n', '')
                       .trim();
-                    console.log(armor_str, armor_str.length);
                     const armor = Object.values(armors).find(
                       (a) => a.name.toUpperCase() === armor_str.toUpperCase()
                     );
