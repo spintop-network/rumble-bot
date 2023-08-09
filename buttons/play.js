@@ -89,8 +89,8 @@ const createConfirmEmbed = (user, type) => {
 
   return new EmbedBuilder().setDescription(
     `You are selling your ${bold(toolText)} for ${bold(
-      Math.floor(tool.cost / 2)
-    )} Credits. Are you sure?`
+      Math.floor(tool.cost / 2) + ' Credits'
+    )}. Are you sure?`
   );
 };
 
@@ -158,7 +158,7 @@ const createRow = (custom_ids = ['status'], user) => {
     },
     buying: {
       customId: 'buying',
-      label: 'Buying',
+      label: 'Buy',
       style: ButtonStyle.Success
     },
     buy_weapon: {
@@ -344,11 +344,11 @@ const startDuel = async (
         await i.update({
           content: '',
           embeds: [
+            embed,
             createNotificationEmbed(
               'Hurray!',
               'You have been added to battle queue!'
-            ),
-            embed
+            )
           ],
           components: [row],
           ephemeral: true
@@ -384,7 +384,7 @@ const startDuel = async (
       );
       if (!is_random_encounter) {
         await i.update({
-          embeds: [createNotificationEmbed('Ooops!', 'It is a tie!'), embed],
+          embeds: [embed, createNotificationEmbed('Ooops!', 'It is a tie!')],
           components: [row],
           ephemeral: true
         });
@@ -474,15 +474,17 @@ const startDuel = async (
       (loserDamage * 10).toFixed(2)
     )} damage with ${bold(
       loser.attack_power.toString() + ' AP'
-    )}.\n\n${duel_text}`;
+    )}.\n\n:axe:${duel_text}`;
     const earnedGold = isLoserDead
       ? Math.floor(
           loser.gold +
-            (loser.armor ? armors[loser.armor].cost : 0) +
-            (loser.weapon ? weapons[loser.weapon].cost : 0)
+            (loser.armor ? armors[loser.armor].cost / 2 : 0) +
+            (loser.weapon ? weapons[loser.weapon].cost / 2 : 0)
         )
       : Math.floor(loser.gold / 2);
-    duel_text += `\n\n:coin:@kaybeden has lost ${bold(
+    duel_text += `\n\n${bold(
+      'Result:'
+    )}\n:money_with_wings:@kaybeden has lost ${bold(
       earnedGold.toString() + ' Credits.'
     )}\n:mending_heart: @kaybeden has lost ${bold(
       lostHealth.toString() + ' HP.'
@@ -522,7 +524,7 @@ const startDuel = async (
         });
       }
     } else {
-      loser.gold -= earnedGold;
+      loser.gold = 0;
       await Promise.all([
         winner.save({ session }),
         loser.save({ session }),
@@ -549,7 +551,7 @@ const startDuel = async (
     }
     const channel = await getChannel(rooms.feed);
     if (channel) {
-      const duel_text_with_separator = duel_text + LINE_SEPARATOR;
+      const duel_text_with_separator = duel_text + '\n' + LINE_SEPARATOR;
       if (!is_random_encounter) {
         await User.findOneAndUpdate(
           { discord_id: i.user.id, energy_points: { $gt: 0 } },
@@ -646,11 +648,11 @@ const play = async (interaction) => {
             } else if (user.gold < weapon.cost) {
               await i.update({
                 embeds: [
+                  createShopEmbed(user),
                   createNotificationEmbed(
                     'Ooops!',
                     'You do not have enough Credits.'
-                  ),
-                  createShopEmbed(user)
+                  )
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
@@ -662,11 +664,11 @@ const play = async (interaction) => {
               await user.save({ session });
               await i.update({
                 embeds: [
+                  createShopEmbed(user),
                   createNotificationEmbed(
                     'Hurray!',
                     'You have bought a weapon!'
-                  ),
-                  createShopEmbed(user)
+                  )
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
@@ -683,11 +685,11 @@ const play = async (interaction) => {
             } else if (user.gold < armor.cost) {
               await i.update({
                 embeds: [
+                  createShopEmbed(user),
                   createNotificationEmbed(
                     'Ooops!',
                     'You do not have enough Credits.'
-                  ),
-                  createShopEmbed(user)
+                  )
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
@@ -698,11 +700,11 @@ const play = async (interaction) => {
               await user.save({ session });
               await i.update({
                 embeds: [
+                  createShopEmbed(user),
                   createNotificationEmbed(
                     'Hurray!',
                     'You have bought an armor!'
-                  ),
-                  createShopEmbed(user)
+                  )
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
@@ -751,11 +753,11 @@ const play = async (interaction) => {
             await i.update({
               content: '',
               embeds: [
+                embed,
                 createNotificationEmbed(
                   'Hurray!',
                   'You are already in battle queue!'
-                ),
-                embed
+                )
               ],
               components: [row],
               ephemeral: true
@@ -766,8 +768,8 @@ const play = async (interaction) => {
             embed = await createEmbed(user);
             await i.update({
               embeds: [
-                createNotificationEmbed('Oops!', 'You do not have enough EP!'),
-                embed
+                embed,
+                createNotificationEmbed('Oops!', 'You do not have enough EP!')
               ],
               components: [row],
               ephemeral: true
@@ -832,8 +834,8 @@ const play = async (interaction) => {
             embed = await createEmbed(user);
             await i.update({
               embeds: [
-                createNotificationEmbed('Oops!', 'You do not have enough EP!'),
-                embed
+                embed,
+                createNotificationEmbed('Oops!', 'You do not have enough EP!')
               ],
               components: [row],
               ephemeral: true
@@ -886,8 +888,8 @@ const play = async (interaction) => {
                           ? ':skull:'
                           : ':mending_heart:'
                       } You have lost ${bold(
-                        lost_hp_capped
-                      )} HP${eliminated_text}.\n`
+                        lost_hp_capped + ' HP'
+                      )}${eliminated_text}.\n`
                     );
                     outcomesFeed.push(
                       `${
@@ -895,8 +897,8 @@ const play = async (interaction) => {
                           ? ':skull:'
                           : ':mending_heart:'
                       } ${userMention(user.discord_id)} has lost ${bold(
-                        lost_hp_capped
-                      )} HP${eliminated_text}.\n`
+                        lost_hp_capped + ' HP'
+                      )}${eliminated_text}.\n`
                     );
                   } else if (out.includes('an ep')) {
                     user.energy_points = Math.max(0, user.energy_points - 1);
@@ -911,7 +913,7 @@ const play = async (interaction) => {
                   } else if (out.includes('all ep')) {
                     user.energy_points = 0;
                     outcomesPrivate.push(
-                      ':low_battery: You have lost all EP.\n'
+                      `:low_battery: You have lost all ${bold('EP')}.`
                     );
                     outcomesFeed.push(
                       `:low_battery: ${userMention(
@@ -952,14 +954,16 @@ const play = async (interaction) => {
                       );
                     } else {
                       outcomesPrivate.push(
-                        `:coin: You have lost ${bold(
-                          lost_credits_capped
-                        )} Credits.\n`
+                        `:money_with_wings: You have lost ${bold(
+                          lost_credits_capped + ' Credits'
+                        )}.\n`
                       );
                       outcomesFeed.push(
-                        `:coin: ${userMention(user.discord_id)} has lost ${bold(
-                          lost_credits_capped
-                        )} Credits.\n`
+                        `:money_with_wings: ${userMention(
+                          user.discord_id
+                        )} has lost ${bold(
+                          lost_credits_capped + ' Credits'
+                        )}.\n`
                       );
                     }
                   } else if (out.includes('armor')) {
@@ -986,27 +990,27 @@ const play = async (interaction) => {
                       if (lost_credit_capped === 0) {
                         // prettier-ignore
                         outcomesPrivateZero.push(
-                          `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.`
+                          `:exclamation: You have ${bold('0 Credits')}. You can't lose what you don't have.`
                         );
                         outcomesFeedZero.push(
                           `:exclamation: ${userMention(
                             user.discord_id
                           )} has ${bold(
-                            '0'
-                          )} Credits. He can't lose what he doesn't have.`
+                            '0 Credits'
+                          )}. He can't lose what he doesn't have.`
                         );
                       } else {
                         outcomesPrivate.push(
                           `:coin: You have lost ${bold(
-                            lost_credit_capped
-                          )} Credits because you don't have an armor.\n`
+                            lost_credit_capped + ' Credits'
+                          )} because you don't have an armor.\n`
                         );
                         outcomesFeed.push(
                           `:coin: ${userMention(
                             user.discord_id
                           )} has lost ${bold(
-                            lost_credit_capped
-                          )} Credits because he doesn't have an armor.\n`
+                            lost_credit_capped + ' Credits'
+                          )} because he doesn't have an armor.\n`
                         );
                       }
                     }
@@ -1037,27 +1041,27 @@ const play = async (interaction) => {
                       if (lost_credit_capped === 0) {
                         // prettier-ignore
                         outcomesPrivateZero.push(
-                          `:exclamation: You have ${bold('0')} Credits. You can't lose what you don't have.`
+                          `:exclamation: You have ${bold('0 Credits')}. You can't lose what you don't have.`
                         );
                         outcomesFeedZero.push(
                           `:exclamation: ${userMention(
                             user.discord_id
                           )} has ${bold(
-                            '0'
-                          )} Credits. He can't lose what he doesn't have.`
+                            '0 Credits'
+                          )}. He can't lose what he doesn't have.`
                         );
                       } else {
                         outcomesPrivate.push(
                           `:coin: You have lost ${bold(
-                            lost_credit_capped
-                          )} Credits because you don't have a weapon.\n`
+                            lost_credit_capped + ' Credits'
+                          )} because you don't have a weapon.\n`
                         );
                         outcomesFeed.push(
                           `:coin: ${userMention(
                             user.discord_id
                           )} has lost ${bold(
-                            lost_credit_capped
-                          )} Credits because he doesn't have a weapon.\n`
+                            lost_credit_capped + ' Credits'
+                          )} because he doesn't have a weapon.\n`
                         );
                       }
                     }
@@ -1139,12 +1143,14 @@ const play = async (interaction) => {
                   const earned_credits = out.split(' ')[1];
                   user.gold += parseInt(earned_credits);
                   outcomesPrivate.push(
-                    `:coin: You have earned ${bold(earned_credits)} Credits.\n`
+                    `:coin: You have earned ${bold(
+                      earned_credits + ' Credits'
+                    )}.\n`
                   );
                   outcomesFeed.push(
                     `:coin: ${userMention(user.discord_id)} has earned ${bold(
-                      earned_credits
-                    )} Credits.\n`
+                      earned_credits + ' Credits'
+                    )}.\n`
                   );
                 } else if (out.includes('gained') && out.includes('hp')) {
                   const gained_hp = out.split(' ')[1].trim();
@@ -1157,35 +1163,35 @@ const play = async (interaction) => {
                   if (gained_hp_capped > 0) {
                     outcomesPrivate.push(
                       `:sparkling_heart: You have gained ${bold(
-                        gained_hp_capped
-                      )} HP.\n`
+                        gained_hp_capped + ' HP'
+                      )}.\n`
                     );
                     outcomesFeed.push(
                       `:sparkling_heart: ${userMention(
                         user.discord_id
-                      )} has gained ${bold(gained_hp_capped)} HP.\n`
+                      )} has gained ${bold(gained_hp_capped + ' HP')}.\n`
                     );
                   } else {
                     outcomesPrivate.push(
                       `:sparkling_heart: You have gained ${bold(
-                        gained_hp
-                      )} HP.\n`
+                        gained_hp + ' HP'
+                      )}.\n`
                     );
                     outcomesFeed.push(
                       `:sparkling_heart: ${userMention(
                         user.discord_id
-                      )} has gained ${bold(gained_hp)} HP.\n`
+                      )} has gained ${bold(gained_hp + ' HP')}.\n`
                     );
                     // prettier-ignore
                     outcomesPrivateZero.push(
-                      `:exclamation: You couldn't gain the HP because your health is already at ${bold('100')}.`
+                      `:exclamation: You couldn't gain the ${bold('HP')} because your health is already at ${bold('100')}.`
                     );
                     outcomesFeedZero.push(
                       `:exclamation: ${userMention(
                         user.discord_id
-                      )} couldn't gain the HP because his health is already at ${bold(
-                        '100'
-                      )}.\n`
+                      )} couldn't gain the ${bold(
+                        'HP'
+                      )} because his health is already at ${bold('100')}.\n`
                     );
                   }
                 } else if (out.includes('regenerated')) {
@@ -1193,12 +1199,14 @@ const play = async (interaction) => {
                     if (user.energy_points === BASE_ENERGY_POINTS) {
                       // prettier-ignore
                       outcomesPrivateZero.push(
-                        ':exclamation: You couldn\'t gain the EP because his energy is already at maximum.'
+                        `:exclamation: You couldn't gain the ${bold('EP')} because his energy is already at maximum.`
                       );
                       outcomesFeedZero.push(
                         `:exclamation: ${userMention(
                           user.discord_id
-                        )} couldn't gain the EP because his energy is already at maximum.\n`
+                        )} couldn't gain the ${bold(
+                          'EP'
+                        )} because his energy is already at maximum.\n`
                       );
                     } else {
                       user.energy_points = Math.min(
@@ -1285,8 +1293,8 @@ const play = async (interaction) => {
                         `:coin: You have found ${bold(
                           armor.name.toUpperCase()
                         )} and sold it for ${bold(
-                          armor.cost.toString()
-                        )} Credits.\n`
+                          armor.cost / 2 + ' Credits'
+                        )}.\n`
                       );
                       outcomesFeed.push(
                         `:coin: ${userMention(
@@ -1294,8 +1302,8 @@ const play = async (interaction) => {
                         )} has found ${bold(
                           armor.name.toUpperCase()
                         )} and sold it for ${bold(
-                          armor.cost.toString()
-                        )} Credits.\n`
+                          armor.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                     } else {
                       user.armor = armor.name;
@@ -1330,8 +1338,8 @@ const play = async (interaction) => {
                         `:coin: You have found ${bold(
                           weapon.name.toUpperCase()
                         )} and sold it for ${bold(
-                          weapon.cost.toString()
-                        )} Credits.\n`
+                          weapon.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                       outcomesFeed.push(
                         `:coin: ${userMention(
@@ -1339,8 +1347,8 @@ const play = async (interaction) => {
                         )} has found ${bold(
                           weapon.name.toUpperCase()
                         )} and sold it for ${bold(
-                          weapon.cost.toString()
-                        )} Credits.\n`
+                          weapon.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                     } else {
                       user.weapon = weapon.name;
@@ -1379,32 +1387,30 @@ const play = async (interaction) => {
                       outcomesPrivate.push(
                         `:coin: You have acquired ${bold(
                           armor.name.toUpperCase()
-                        )} (armor) and sold it for ${bold(
-                          armor.cost.toString()
-                        )} Credits.\n`
+                        )} and sold it for ${bold(
+                          armor.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                       outcomesFeed.push(
                         `:coin: ${userMention(
                           user.discord_id
                         )} has acquired ${bold(
                           armor.name.toUpperCase()
-                        )} (armor) and sold it for ${bold(
-                          armor.cost.toString()
-                        )} Credits.\n`
+                        )} and sold it for ${bold(
+                          armor.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                     } else {
                       user.armor = armor.name;
                       outcomesPrivate.push(
                         `:shield: You have acquired ${bold(
                           armor_str.toUpperCase()
-                        )} (armor).\n`
+                        )}.\n`
                       );
                       outcomesFeed.push(
                         `:shield: ${userMention(
                           user.discord_id
-                        )} has acquired ${bold(
-                          armor_str.toUpperCase()
-                        )} (armor).\n`
+                        )} has acquired ${bold(armor_str.toUpperCase())}.\n`
                       );
                     }
                   } else if (out.includes('weapon')) {
@@ -1425,18 +1431,18 @@ const play = async (interaction) => {
                       outcomesPrivate.push(
                         `:coin: You have acquired ${bold(
                           weapon.name.toUpperCase()
-                        )} (weapon) and sold it for ${bold(
-                          weapon.cost.toString()
-                        )} Credits.\n`
+                        )} and sold it for ${bold(
+                          weapon.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                       outcomesFeed.push(
                         `:coin: ${userMention(
                           user.discord_id
                         )} has acquired ${bold(
                           weapon.name.toUpperCase()
-                        )} (weapon) and sold it for ${bold(
-                          weapon.cost.toString()
-                        )} Credits.\n`
+                        )} and sold it for ${bold(
+                          weapon.cost.toString() + ' Credits'
+                        )}.\n`
                       );
                     } else {
                       user.weapon = weapon.name;
@@ -1445,14 +1451,12 @@ const play = async (interaction) => {
                       outcomesPrivate.push(
                         `:dagger: You have acquired ${bold(
                           weapon_str.toUpperCase()
-                        )} (weapon).\n`
+                        )}.\n`
                       );
                       outcomesFeed.push(
                         `:dagger: ${userMention(
                           user.discord_id
-                        )} has acquired ${bold(
-                          weapon_str.toUpperCase()
-                        )} (weapon).\n`
+                        )} has acquired ${bold(weapon_str.toUpperCase())}.\n`
                       );
                     }
                   }
@@ -1470,12 +1474,14 @@ const play = async (interaction) => {
                     '[2;45m[2;37m[2;37m[2;40m-RANDOM ENCOUNTER-[0m[2;37m[2;45m[0m[2;37m[2;45m[2;31m[0m[2;37m[2;45m[0m[2;45m[0m\n' +
                     '```' +
                     '\n' +
-                    `:speech_balloon: ${feedWithoutOutcome}\n${outcomesFeed.join(
+                    `:speech_balloon: ${feedWithoutOutcome}\n${bold(
+                      'Result:'
+                    )}\n${outcomesFeed.join(
                       ''
-                    )}${outcomesFeedZeroText}\n${LINE_SEPARATOR}`.replaceAll(
-                      '\n\n',
-                      '\n'
-                    )
+                    )}${outcomesFeedZeroText}\n${LINE_SEPARATOR}`
+                      .replaceAll('\n\n', '\n')
+                      .replace(LINE_SEPARATOR, `\n${LINE_SEPARATOR}`)
+                      .replaceAll('\n\n\n', '\n')
                 );
               }
               const outcomesPrivateText = outcomesPrivate
@@ -1528,8 +1534,8 @@ const play = async (interaction) => {
                       '```' +
                       '\n' +
                       `:speech_balloon: ${feedWithoutOutcome}\n\n${bold(
-                        random.outcome
-                      )}${LINE_SEPARATOR}`
+                        'Result:'
+                      )}\n${random.outcome}\n${LINE_SEPARATOR}`
                   ),
                   i.update({
                     embeds: [
@@ -1538,7 +1544,7 @@ const play = async (interaction) => {
                           random.scenario
                         )}\n\n<:bits:1138072538384171028>${
                           random.bits
-                        }\n\n${bold(random.outcome)}`
+                        }\n\n${bold('Result:')}${random.outcome}`
                       )
                     ],
                     ephemeral: true
@@ -1551,7 +1557,8 @@ const play = async (interaction) => {
                       `:speech_balloon: ${italic(
                         random.scenario
                       )}\n\n<:bits:1138072538384171028>${random.bits}\n\n${bold(
-                        random.outcome
+                        'Result:'
+                      )}${random.outcome}
                       )}`
                     )
                   ],
@@ -1571,7 +1578,7 @@ const play = async (interaction) => {
                       '[2;45m[2;37m[2;37m[2;40m-RANDOM ENCOUNTER-[0m[2;37m[2;45m[0m[2;37m[2;45m[2;31m[0m[2;37m[2;45m[0m[2;45m[0m\n' +
                       '```' +
                       '\n' +
-                      `:speech_balloon: ${feedWithMention}${LINE_SEPARATOR}`
+                      `:speech_balloon: ${feedWithMention}\n${LINE_SEPARATOR}`
                   ),
                   i.update({
                     embeds: [
@@ -1678,11 +1685,11 @@ const play = async (interaction) => {
               if (user.gold < user.health_potion_cost) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You do not have enough Credits to buy a repair kit!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1694,11 +1701,11 @@ const play = async (interaction) => {
                 await user.save({ session });
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Success!',
                       'You have bought and used a repair kit!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1715,11 +1722,11 @@ const play = async (interaction) => {
               if (user.weapon) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You already have a weapon. Sell it first to buy another one!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1736,11 +1743,11 @@ const play = async (interaction) => {
               if (!user.weapon) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You do not have a weapon to sell!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1756,11 +1763,11 @@ const play = async (interaction) => {
               await user.save({ session });
               await i.update({
                 embeds: [
+                  createShopEmbed(user),
                   createNotificationEmbed(
                     'Success!',
                     'You have sold your weapon for half of its price!'
-                  ),
-                  createShopEmbed(user)
+                  )
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
@@ -1775,11 +1782,11 @@ const play = async (interaction) => {
               if (!user.weapon) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You do not have a weapon to sell!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1796,11 +1803,11 @@ const play = async (interaction) => {
               if (user.armor) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You already have an armor. Sell it first to buy another one!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1817,11 +1824,11 @@ const play = async (interaction) => {
               if (!user.armor) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You do not have an armor to sell!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true
@@ -1836,11 +1843,11 @@ const play = async (interaction) => {
               await user.save({ session });
               await i.update({
                 embeds: [
+                  createShopEmbed(user),
                   createNotificationEmbed(
                     'Success!',
                     'You have sold your armor for half of its price!'
-                  ),
-                  createShopEmbed(user)
+                  )
                 ],
                 components: [extraRows.shop],
                 ephemeral: true
@@ -1855,11 +1862,11 @@ const play = async (interaction) => {
               if (!user.armor) {
                 await i.update({
                   embeds: [
+                    createShopEmbed(user),
                     createNotificationEmbed(
                       'Ooops!',
                       'You do not have an armor to sell!'
-                    ),
-                    createShopEmbed(user)
+                    )
                   ],
                   components: [extraRows.shop],
                   ephemeral: true

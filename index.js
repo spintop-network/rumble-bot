@@ -244,7 +244,7 @@ setInterval(async () => {
                             user.health_points
                           } | ${user.stats?.kills ?? 0} | ${
                             user.stats?.inflicted_damage ?? 0
-                          } | $${bold(prizes[index])}`
+                          } | ${bold('$' + prizes[index])}`
                       )
                       .join('\n')
                 );
