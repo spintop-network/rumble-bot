@@ -1255,10 +1255,7 @@ const play = async (interaction) => {
                         )} because his energy is already at maximum.\n`
                       );
                     } else {
-                      user.energy_points = Math.min(
-                        user.energy_points + 3,
-                        BASE_ENERGY_POINTS
-                      );
+                      user.energy_points = BASE_ENERGY_POINTS;
                       outcomesPrivate.push(
                         `:battery: You have regenerated ${bold('all EP')}.`
                       );
