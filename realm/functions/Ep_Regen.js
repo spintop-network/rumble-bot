@@ -21,11 +21,27 @@ const sudden_death = async (
   }));
 
   if (bulkOperations.length > 0) {
-    await notificationsCol.insertMany(bulkOperations, {
-      session,
-      ordered: false
-    });
-    await deathsCol.insertMany(bulkOperations, { session, ordered: false });
+    const deaths = (
+      await deathsCol
+        .find(
+          { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
+          { session }
+        )
+        .toArray()
+    ).map((i) => i.discord_id);
+    const will_inserted_deaths = bulkOperations.filter(
+      (i) => !deaths.includes(i.discord_id)
+    );
+    if (will_inserted_deaths.length > 0) {
+      await deathsCol.insertMany(will_inserted_deaths, {
+        session,
+        ordered: false
+      });
+      await notificationsCol.insertMany(bulkOperations, {
+        session,
+        ordered: false
+      });
+    }
     await duelsCol.deleteMany(
       { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
       { session }
@@ -64,11 +80,27 @@ const ep_regen = async (
   }));
 
   if (bulkOperations.length > 0) {
-    await notificationsCol.insertMany(bulkOperations, {
-      session,
-      ordered: false
-    });
-    await deathsCol.insertMany(bulkOperations, { session, ordered: false });
+    const deaths = (
+      await deathsCol
+        .find(
+          { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
+          { session }
+        )
+        .toArray()
+    ).map((i) => i.discord_id);
+    const will_inserted_deaths = bulkOperations.filter(
+      (i) => !deaths.includes(i.discord_id)
+    );
+    if (will_inserted_deaths.length > 0) {
+      await deathsCol.insertMany(will_inserted_deaths, {
+        session,
+        ordered: false
+      });
+      await notificationsCol.insertMany(bulkOperations, {
+        session,
+        ordered: false
+      });
+    }
     await usersCol.updateMany(
       { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
       { $inc: { health_points: -5 } },
@@ -122,9 +154,15 @@ exports = async () => {
 
   try {
     await session.withTransaction(async () => {
-      await ep_regen(usersCol, notifications, session, deaths, duels);
-      if (isSuddenDeathActive) {
-        await sudden_death(usersCol, notifications, session, deaths, duels);
+      const active_user_count = await usersCol.count(
+        { health_points: { $gt: 0 } },
+        { session }
+      );
+      if (active_user_count > 1) {
+        await ep_regen(usersCol, notifications, session, deaths, duels);
+        if (isSuddenDeathActive) {
+          await sudden_death(usersCol, notifications, session, deaths, duels);
+        }
       }
     }, transactionOptions);
     return true;
