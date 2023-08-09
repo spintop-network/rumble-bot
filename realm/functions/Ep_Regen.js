@@ -159,8 +159,8 @@ const ep_regen = async (
 
 exports = async () => {
   // TODO: Change this to environment variable.
-  const isGameStarted = true;
-  const isSuddenDeathActive = true;
+  const isGameStarted = false;
+  const isSuddenDeathActive = false;
   if (!isGameStarted) return false;
   const serviceName = 'mongodb-atlas';
   const dbName = 'spinroyale';

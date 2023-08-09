@@ -6,6 +6,8 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { client } = require('./client.js');
 const Notification = require('./models/notification');
+const User = require('./models/user');
+const Config = require('./models/config');
 const register = require('./buttons/register');
 const play = require('./buttons/play');
 const leaderboard = require('./buttons/leaderboard');
@@ -159,6 +161,102 @@ setInterval(async () => {
           (await client.channels.cache.get(rooms.feed)) ||
           (await client.channels.fetch(rooms.feed));
         if (channel) {
+          // Winner message
+
+          const alive_count = await User.countDocuments({
+            health_points: { $gt: 0 }
+          }).session(session);
+
+          if (alive_count <= 1) {
+            const config = await Config.findOne({ id: 0 })
+              .session(session)
+              .lean();
+            const winner = await User.findOne({
+              health_points: { $gt: 0 }
+            }).session(session);
+            if (winner && !config?.is_game_over) {
+              const deadUsers = await User.aggregate([
+                {
+                  $lookup: {
+                    from: 'stats',
+                    localField: 'discord_id',
+                    foreignField: 'discord_id',
+                    as: 'stats'
+                  }
+                },
+                {
+                  $lookup: {
+                    from: 'deaths',
+                    localField: 'discord_id',
+                    foreignField: 'discord_id',
+                    as: 'deaths'
+                  }
+                },
+                {
+                  $set: {
+                    deaths: {
+                      $first: '$deaths'
+                    }
+                  }
+                },
+                {
+                  $match: {
+                    deaths: {
+                      $exists: true
+                    }
+                  }
+                },
+                {
+                  $set: {
+                    stats: {
+                      $first: '$stats'
+                    }
+                  }
+                },
+                {
+                  $sort: {
+                    'deaths.death_time': -1,
+                    health_points: -1,
+                    'stats.kills': -1,
+                    'stats.inflicted_damage': -1
+                  }
+                },
+                {
+                  $limit: 20
+                }
+              ]);
+              const prizes = [
+                1500, 1000, 800, 500, 500, 500, 150, 150, 150, 150, 100, 100,
+                100, 100, 100, 20, 20, 20, 20, 20
+              ];
+              const embedBuilder = new EmbedBuilder()
+                .setTitle(':tada: We have a winner! :tada:')
+                .setDescription(
+                  `${userMention(winner.discord_id)} has won the game! \n\n` +
+                    bold(
+                      'Pilot Name | Health Points | Kill Count | Damage Inflicted | Prize\n\n'
+                    ) +
+                    [winner, ...deadUsers]
+                      .map(
+                        (user, index) =>
+                          `${index + 1}. ${userMention(user.discord_id)} | ${
+                            user.health_points
+                          } | ${user.stats?.kills ?? 0} | ${
+                            user.stats?.inflicted_damage ?? 0
+                          } | $${bold(prizes[index])}`
+                      )
+                      .join('\n')
+                );
+              const message = await channel.send({ embeds: [embedBuilder] });
+              await message.pin();
+              await Config.updateOne(
+                { id: 0 },
+                { $set: { is_game_over: true } },
+                { session, upsert: true }
+              );
+            }
+          }
+
           for await (const embed of embeds) {
             if (embed.array_reduced.length) {
               if (embed.title) {

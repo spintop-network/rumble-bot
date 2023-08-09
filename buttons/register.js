@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const User = require('../models/user');
+const Stat = require('../models/stat');
 const {
   BASE_ATTACK_POWER,
   BASE_ENERGY_POINTS,
@@ -31,6 +32,10 @@ const register = async (interaction) => {
         armor: null
       });
       await newUser.save({ session });
+      const new_stats = new Stat({
+        discord_id: interaction.user.id
+      });
+      await new_stats.save({ session });
       if (process.env.NODE_ENV === 'production') {
         if (
           !interaction.member.roles.cache.has(roles.pilot) ||

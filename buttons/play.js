@@ -28,6 +28,7 @@ const {
 const { client } = require('../client');
 const Duel = require('../models/duel');
 const Death = require('../models/death');
+const Stat = require('../models/stat');
 
 const LINE_SEPARATOR = '\n•───────────────────••───────────────────•';
 
@@ -481,6 +482,11 @@ const startDuel = async (
             discord_id: { $in: [winner.discord_id, loser.discord_id] }
           },
           { session }
+        ),
+        Stat.updateOne(
+          { discord_id: winner.discord_id },
+          { $inc: { kills: 1, inflicted_damage: Math.floor(damageFloat) } },
+          { session, upsert: true }
         )
       ]);
       if (!is_random_encounter) {
@@ -501,6 +507,11 @@ const startDuel = async (
             discord_id: { $in: [winner.discord_id, loser.discord_id] }
           },
           { session }
+        ),
+        Stat.updateOne(
+          { discord_id: winner.discord_id },
+          { $inc: { inflicted_damage: Math.floor(damageFloat) } },
+          { session, upsert: true }
         )
       ]);
       if (!is_random_encounter) {
