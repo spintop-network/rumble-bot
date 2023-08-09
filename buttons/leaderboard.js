@@ -122,7 +122,8 @@ const leaderboard = async (interaction) => {
               )
               .join('\n')
         )
-    ]
+    ],
+    ephemeral: true
   });
 };
 
