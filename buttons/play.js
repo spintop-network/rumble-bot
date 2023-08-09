@@ -524,7 +524,7 @@ const startDuel = async (
         });
       }
     } else {
-      loser.gold = 0;
+      loser.gold -= earnedGold;
       await Promise.all([
         winner.save({ session }),
         loser.save({ session }),
