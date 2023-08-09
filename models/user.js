@@ -20,4 +20,5 @@ const UserSchema = new mongoose.Schema(
 
 UserSchema.index({ discord_id: 1 }, { unique: true });
 UserSchema.index({ wallet_id: 'text' }, { unique: true });
+UserSchema.index({ health_points: 1, energy_points: 1 });
 module.exports = mongoose.model('User', UserSchema, 'users');
