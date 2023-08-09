@@ -30,7 +30,7 @@ const Duel = require('../models/duel');
 const Death = require('../models/death');
 const Stat = require('../models/stat');
 
-const LINE_SEPARATOR = '\n•───────────────────••───────────────────•';
+const LINE_SEPARATOR = '\n───────────────────────────────────';
 
 const createEmbed = async (user) => {
   const weapon = weapons[user.weapon];
@@ -444,20 +444,27 @@ const startDuel = async (
     } else if (weapon_text) {
       armory_text = weapon_text;
     }
+    const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
+    const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
     let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
     duel_text = isLoserDead
       ? `${armory_text}\n${duel_text}`
       : `${duel_text}\n${armory_text}`;
-    duel_text = `:axe: ${duel_text}`;
-    const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
-    const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
-    duel_text += `\n\n:game_die: :dagger: @kazanan rolled ${bold(
-      winnerRollText
-    )} and dealt ${bold((winnerDamage * 10).toFixed(2))} damage with ${bold(
+    duel_text = `\`\`\`diff
+-BATTLE-
+\`\`\`\n${userMention(winner.discord_id)} :crossed_swords: ${userMention(
+      loser.discord_id
+    )}\n\n:game_die:@kazanan rolled ${bold(winnerRollText)} and dealt ${bold(
+      (winnerDamage * 10).toFixed(2)
+    )} damage with ${bold(
       winner.attack_power.toString() + ' AP'
-    )}. @kaybeden rolled ${bold(loserRollText)} and failed to deal ${bold(
+    )}.\n:game_die:@kaybeden rolled ${bold(
+      loserRollText
+    )} and failed to deal ${bold(
       (loserDamage * 10).toFixed(2)
-    )} damage with ${bold(loser.attack_power.toString() + ' AP')}.`;
+    )} damage with ${bold(
+      loser.attack_power.toString() + ' AP'
+    )}.\n\n${duel_text}`;
     const earnedGold = isLoserDead
       ? Math.floor(
           loser.gold +
@@ -465,9 +472,11 @@ const startDuel = async (
             (loser.weapon ? weapons[loser.weapon].cost : 0)
         )
       : Math.floor(loser.gold / 2);
-    duel_text += `\n\n:coin: :mending_heart: @kaybeden has lost ${bold(
-      earnedGold
-    )} Credits and ${bold(lostHealth)} HP.`;
+    duel_text += `\n\n:coin:@kaybeden has lost ${bold(
+      earnedGold.toString() + ' Credits.'
+    )}\n:mending_heart: @kaybeden has lost ${bold(
+      lostHealth.toString() + ' HP.'
+    )}`;
     duel_text = duel_text
       .replaceAll('@kazanan', userMention(winner.discord_id))
       .replaceAll('@kaybeden', userMention(loser.discord_id));
@@ -1451,12 +1460,16 @@ const play = async (interaction) => {
                   ? `\n\n${outcomesFeedZero.join('')}`
                   : '';
                 await channel.send(
-                  `:speech_balloon: ${feedWithoutOutcome}\n${outcomesFeed.join(
-                    ''
-                  )}${outcomesFeedZeroText}${LINE_SEPARATOR}`.replaceAll(
-                    '\n\n',
-                    '\n'
-                  )
+                  '```ansi\n' +
+                    '[2;45m[2;37m[2;37m[2;40m-RANDOM ENCOUNTER-[0m[2;37m[2;45m[0m[2;37m[2;45m[2;31m[0m[2;37m[2;45m[0m[2;45m[0m\n' +
+                    '```' +
+                    '\n\n' +
+                    `:speech_balloon: ${feedWithoutOutcome}\n${outcomesFeed.join(
+                      ''
+                    )}${outcomesFeedZeroText}${LINE_SEPARATOR}`.replaceAll(
+                      '\n\n',
+                      '\n'
+                    )
                 );
               }
               const outcomesPrivateText = outcomesPrivate

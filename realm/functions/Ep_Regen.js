@@ -8,7 +8,7 @@ const sudden_death = async (
   const will_die_users = await usersCol
     .find(
       {
-        $and: [{ health_points: { $lte: 10 } }, { health_points: { $gt: 0 } }]
+        $and: [{ health_points: { $lte: 5 } }, { health_points: { $gt: 0 } }]
       },
       { session }
     )
@@ -54,7 +54,7 @@ const sudden_death = async (
   if (will_dec_health.length > 0) {
     await usersCol.updateMany(
       { discord_id: { $in: will_dec_health.map((i) => i.discord_id) } },
-      { $inc: { health_points: -10 } },
+      { $inc: { health_points: -5 } },
       { session }
     );
     await notificationsCol.insertMany(
@@ -159,9 +159,6 @@ const ep_regen = async (
 
 exports = async () => {
   // TODO: Change this to environment variable.
-  const isGameStarted = false;
-  const isSuddenDeathActive = false;
-  if (!isGameStarted) return false;
   const serviceName = 'mongodb-atlas';
   const dbName = 'spinroyale';
   const client = context.services.get(serviceName);
@@ -170,6 +167,13 @@ exports = async () => {
   const notifications = db.collection('notifications');
   const deaths = db.collection('deaths');
   const duels = db.collection('duels');
+  const configs = db.collection('configs');
+
+  const config = await configs.findOne({ id: 0 });
+
+  const isGameStarted = config?.is_game_started ?? false;
+  const isSuddenDeathActive = config?.is_sudden_death_active ?? false;
+  if (!isGameStarted) return false;
 
   const session = client.startSession();
 
