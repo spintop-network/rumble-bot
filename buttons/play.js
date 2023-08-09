@@ -444,24 +444,24 @@ const startDuel = async (
     } else if (weapon_text) {
       armory_text = weapon_text;
     }
-    if (winner.weapon) {
-      const weapon = weapons[winner.weapon];
-      armory_text = armory_text.replaceAll(
-        winner.weapon.toUpperCase(),
-        `${weapon.emoji ?? ''}${bold(winner.weapon.toUpperCase())}${
-          weapon.emoji ?? ''
-        }`
-      );
-    }
-    if (loser.armor) {
-      const armor = armors[loser.weapon];
-      armory_text = armory_text.replaceAll(
-        loser.armor.toUpperCase(),
-        `${armor.emoji ?? ''}${bold(loser.armor.toUpperCase())}${
-          armor.emoji ?? ''
-        }`
-      );
-    }
+    // if (winner.weapon) {
+    //   const weapon = weapons[winner.weapon];
+    //   armory_text = armory_text.replaceAll(
+    //     winner.weapon.toUpperCase(),
+    //     `${weapon.emoji ?? ''}${bold(winner.weapon.toUpperCase())}${
+    //       weapon.emoji ?? ''
+    //     }`
+    //   );
+    // }
+    // if (loser.armor) {
+    //   const armor = armors[loser.weapon];
+    //   armory_text = armory_text.replaceAll(
+    //     loser.armor.toUpperCase(),
+    //     `${armor.emoji ?? ''}${bold(loser.armor.toUpperCase())}${
+    //       armor.emoji ?? ''
+    //     }`
+    //   );
+    // }
     const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
     const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
     let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
