@@ -12,6 +12,8 @@ const NotificationSchema = new mongoose.Schema(
   }
 );
 
+NotificationSchema.index({ type: 'text' });
+
 module.exports = mongoose.model(
   'Notification',
   NotificationSchema,

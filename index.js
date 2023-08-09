@@ -1,7 +1,7 @@
 // Require the necessary discord.js classes
 const fs = require('node:fs');
 const path = require('node:path');
-const { Events, EmbedBuilder, userMention } = require('discord.js');
+const { Events, EmbedBuilder, userMention, bold } = require('discord.js');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { client } = require('./client.js');
@@ -74,53 +74,113 @@ setInterval(async () => {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
-      const sudden_deaths = await Notification.find({ type: 'sudden_death' })
-        .session(session)
-        .limit(20)
-        .lean();
+      const [
+        sudden_deaths,
+        inactivity_deaths,
+        inactivity_health,
+        sudden_health
+      ] = await Promise.all([
+        Notification.find({ type: 'sudden_death' })
+          .session(session)
+          .limit(20)
+          .lean(),
+        Notification.find({
+          type: 'inactivity_death'
+        })
+          .session(session)
+          .limit(20)
+          .lean(),
+        Notification.find({
+          type: 'inactivity_health'
+        })
+          .session(session)
+          .limit(20)
+          .lean(),
+        Notification.find({
+          type: 'sudden_health'
+        })
+          .session(session)
+          .limit(20)
+          .lean()
+      ]);
 
-      const inactivity_deaths = await Notification.find({
-        type: 'inactivity_death'
-      })
-        .session(session)
-        .limit(20)
-        .lean();
+      const inactivity_health_reduced = inactivity_health.filter(
+        (i) =>
+          !sudden_deaths.some((j) => j.discord_id === i.discord_id) &&
+          !inactivity_deaths.some((j) => j.discord_id === i.discord_id)
+      );
+      const sudden_health_reduced = sudden_health.filter(
+        (i) =>
+          !sudden_deaths.some((j) => j.discord_id === i.discord_id) &&
+          !inactivity_deaths.some((j) => j.discord_id === i.discord_id)
+      );
+
+      const embeds = [
+        {
+          title: ':rotating_light: Overload Protocol :rotating_light:',
+          description: `These players have suddenly died:\n\n${sudden_deaths
+            .map((i) => `${userMention(i.discord_id)}\n`)
+            .join('')}`,
+          array: sudden_deaths,
+          array_reduced: sudden_deaths
+        },
+        {
+          title: ':skull: Inactivity Deaths :skull:',
+          description: `These players have died since they were inactive:\n\n${inactivity_deaths
+            .map((i) => `${userMention(i.discord_id)}\n`)
+            .join('')}`,
+          array: inactivity_deaths,
+          array_reduced: inactivity_deaths
+        },
+        {
+          title: '',
+          description: `:mending_heart: These players have lost ${bold(
+            '5 HP'
+          )} since they were inactive:\n\n${inactivity_health_reduced
+            .map((i) => `${userMention(i.discord_id)}\n`)
+            .join('')}`,
+          array: inactivity_health,
+          array_reduced: inactivity_health_reduced
+        },
+        {
+          title: '',
+          description: `:mending_heart: These players have lost ${bold(
+            '10 HP'
+          )} since overload protocol is active:\n\n${sudden_health_reduced
+            .map((i) => `${userMention(i.discord_id)}\n`)
+            .join('')}`,
+          array: sudden_health,
+          array_reduced: sudden_health_reduced
+        }
+      ];
 
       try {
         const channel =
           (await client.channels.cache.get(rooms.feed)) ||
           (await client.channels.fetch(rooms.feed));
         if (channel) {
-          if (sudden_deaths.length) {
-            const suddenDeathEmbed = new EmbedBuilder()
-              .setTitle(':rotating_light: Overload Protocol :rotating_light:')
-              .setDescription(
-                `These players have suddenly died!\n\n${sudden_deaths.map(
-                  (i) => `${userMention(i.discord_id)}\n`
-                )}`
-              );
-            await channel.send({ embeds: [suddenDeathEmbed] });
+          for await (const embed of embeds) {
+            if (embed.array_reduced.length) {
+              if (embed.title) {
+                const embedBuilder = new EmbedBuilder()
+                  .setTitle(embed.title)
+                  .setDescription(embed.description);
+                await channel.send({ embeds: [embedBuilder] });
+              } else {
+                const embedBuilder = new EmbedBuilder().setDescription(
+                  embed.description
+                );
+                await channel.send({ embeds: [embedBuilder] });
+              }
+            }
           }
-          if (inactivity_deaths.length) {
-            const inactivityDeathEmbed = new EmbedBuilder()
-              .setTitle('Inactivity Deaths')
-              .setDescription(
-                `These players have died because of inactivity:\n\n${inactivity_deaths.map(
-                  (i) => `${userMention(i.discord_id)}\n`
-                )}`
-              );
-            await channel.send({ embeds: [inactivityDeathEmbed] });
-          }
-          if (sudden_deaths.length || inactivity_deaths.length) {
+          const arraysCombined = embeds.reduce((acc, cur) => {
+            acc.push(...cur.array);
+            return acc;
+          }, []);
+          if (arraysCombined.length) {
             await Notification.deleteMany(
-              {
-                discord_id: {
-                  $in: [
-                    ...sudden_deaths.map((i) => i.discord_id),
-                    ...inactivity_deaths.map((i) => i.discord_id)
-                  ]
-                }
-              },
+              { discord_id: { $in: arraysCombined.map((i) => i.discord_id) } },
               { session }
             );
           }
@@ -135,4 +195,4 @@ setInterval(async () => {
   } finally {
     await session.endSession();
   }
-}, 10000);
+}, 5000);

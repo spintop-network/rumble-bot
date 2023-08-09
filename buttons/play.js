@@ -804,6 +804,18 @@ const play = async (interaction) => {
                       user.health_points
                     );
                     user.health_points -= parseInt(lost_hp);
+                    if (user.health_points <= 0) {
+                      await Duel.deleteOne(
+                        { discord_id: user.discord_id },
+                        { session }
+                      );
+                      const new_death = new Death({
+                        type: 'encounter',
+                        discord_id: user.discord_id,
+                        death_time: new Date()
+                      });
+                      await new_death.save({ session });
+                    }
                     const eliminated_text =
                       user.health_points <= 0
                         ? ` and been ${bold('ELIMINATED!')}`
@@ -1045,10 +1057,14 @@ const play = async (interaction) => {
                   }
                 } else if (out.includes('eliminated')) {
                   user.health_points = 0;
+                  const new_death = new Death({
+                    type: 'encounter',
+                    discord_id: user.discord_id,
+                    date: new Date()
+                  });
+                  await new_death.save({ session });
                   await Duel.deleteOne(
-                    {
-                      discord_id: user.discord_id
-                    },
+                    { discord_id: user.discord_id },
                     { session }
                   );
                   outcomesPrivate.push(
@@ -1184,7 +1200,7 @@ const play = async (interaction) => {
                         BASE_ENERGY_POINTS
                       );
                       outcomesPrivate.push(
-                        `:battery: You have regenerated ${bold('all EP')} EP.`
+                        `:battery: You have regenerated ${bold('all EP')}.`
                       );
                       outcomesFeed.push(
                         `:battery: ${userMention(

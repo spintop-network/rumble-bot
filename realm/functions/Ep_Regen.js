@@ -48,11 +48,25 @@ const sudden_death = async (
     );
   }
 
-  await usersCol.updateMany(
-    { health_points: { $gt: 0 } },
-    { $inc: { health_points: -10 } },
-    { session }
-  );
+  const will_dec_health = await usersCol
+    .find({ health_points: { $gt: 0 } }, { session })
+    .toArray();
+  if (will_dec_health.length > 0) {
+    await usersCol.updateMany(
+      { discord_id: { $in: will_dec_health.map((i) => i.discord_id) } },
+      { $inc: { health_points: -10 } },
+      { session }
+    );
+    await notificationsCol.insertMany(
+      will_dec_health.map((user) => ({
+        type: 'sudden_health',
+        discord_id: user.discord_id,
+        death_time: new Date()
+      })),
+      { session, ordered: false }
+    );
+  }
+
   return true;
 };
 
@@ -117,11 +131,24 @@ const ep_regen = async (
     { $inc: { gold: 10 } },
     { session }
   );
-  await usersCol.updateMany(
-    { energy_points: 6, health_points: { $gt: 0 } },
-    { $inc: { health_points: -5 } },
-    { session }
-  );
+  const will_dec_health = await usersCol
+    .find({ energy_points: 6, health_points: { $gt: 0 } }, { session })
+    .toArray();
+  if (will_dec_health.length > 0) {
+    await usersCol.updateMany(
+      { discord_id: { $in: will_dec_health.map((i) => i.discord_id) } },
+      { $inc: { health_points: -5 } },
+      { session }
+    );
+    await notificationsCol.insertMany(
+      will_dec_health.map((user) => ({
+        type: 'inactivity_health',
+        discord_id: user.discord_id,
+        death_time: new Date()
+      })),
+      { session, ordered: false }
+    );
+  }
   await usersCol.updateMany(
     { energy_points: { $lt: 6 }, health_points: { $gt: 0 } },
     { $inc: { energy_points: 1 } },
@@ -132,8 +159,8 @@ const ep_regen = async (
 
 exports = async () => {
   // TODO: Change this to environment variable.
-  const isGameStarted = false;
-  const isSuddenDeathActive = false;
+  const isGameStarted = true;
+  const isSuddenDeathActive = true;
   if (!isGameStarted) return false;
   const serviceName = 'mongodb-atlas';
   const dbName = 'spinroyale';
