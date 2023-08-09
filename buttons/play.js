@@ -309,17 +309,23 @@ const createRow = (custom_ids = ['status'], user) => {
 const createExtraRows = (obj, key, user) => {
   if (!obj[key]) {
     if (key === 'shop') {
-      obj[key] = createRow(['status', 'buying', 'sell_weapon', 'sell_armor']);
+      obj[key] = createRow(
+        ['status', 'buying', 'sell_weapon', 'sell_armor'],
+        user
+      );
     } else if (key === 'buy_weapon') {
       obj[key] = createRow(['weapon_list'], user);
     } else if (key === 'buy_armor') {
       obj[key] = createRow(['armor_list'], user);
     } else if (key === 'buying') {
-      obj[key] = createRow(['status', 'buy_potion', 'buy_weapon', 'buy_armor']);
+      obj[key] = createRow(
+        ['status', 'buy_potion', 'buy_weapon', 'buy_armor'],
+        user
+      );
     } else if (key === 'weapon_confirm') {
-      obj[key] = createRow(['sell_weapon_confirm', 'sell_weapon_cancel']);
+      obj[key] = createRow(['sell_weapon_confirm', 'sell_weapon_cancel'], user);
     } else if (key === 'armor_confirm') {
-      obj[key] = createRow(['sell_armor_confirm', 'sell_armor_cancel']);
+      obj[key] = createRow(['sell_armor_confirm', 'sell_armor_cancel'], user);
     }
   }
 };
@@ -578,7 +584,7 @@ const play = async (interaction) => {
     let embed = await createEmbed(user_global);
     const row = createRow(['status', 'duel', 'random_encounter', 'shop']);
     const extraRows = {};
-    createExtraRows(extraRows, 'shop');
+    createExtraRows(extraRows, 'shop', user_global);
     const response = await interaction.editReply({
       embeds: [embed],
       components: [row],
@@ -1672,7 +1678,7 @@ const play = async (interaction) => {
                 });
               }
             } else if (i.customId === 'buying') {
-              createExtraRows(extraRows, 'buying');
+              createExtraRows(extraRows, 'buying', user);
               await i.update({
                 embeds: [createShopEmbed(user)],
                 components: [extraRows.buying],

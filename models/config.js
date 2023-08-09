@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const ConfigSchema = new mongoose.Schema(
   {
     is_game_over: Boolean,
+    is_game_started: Boolean,
+    is_sudden_death_active: Boolean,
     id: {
       $type: Number,
       default: 0

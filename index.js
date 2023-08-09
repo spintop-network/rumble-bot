@@ -174,7 +174,7 @@ setInterval(async () => {
             const winner = await User.findOne({
               health_points: { $gt: 0 }
             }).session(session);
-            if (winner && !config?.is_game_over) {
+            if (config?.is_game_started && winner && !config?.is_game_over) {
               const deadUsers = await User.aggregate([
                 {
                   $lookup: {
@@ -237,6 +237,7 @@ setInterval(async () => {
                       'Pilot Name | Health Points | Kill Count | Damage Inflicted | Prize\n\n'
                     ) +
                     [winner, ...deadUsers]
+                      .slice(0, 20)
                       .map(
                         (user, index) =>
                           `${index + 1}. ${userMention(user.discord_id)} | ${
