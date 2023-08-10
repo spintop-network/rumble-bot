@@ -396,12 +396,19 @@ const startDuel = async (
     );
     const isTie = playerDamage === otherPlayerDamage;
     if (isTie) {
-      await Duel.deleteMany(
-        {
-          discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
-        },
-        { session }
-      );
+      await Promise.allSettled([
+        Duel.deleteMany(
+          {
+            discord_id: { $in: [i.user.id, otherDuelPlayer.discord_id] }
+          },
+          { session }
+        ),
+        User.updateOne(
+          { discord_id: i.user.id },
+          { $set: { has_seen_tie_message: true } },
+          { session }
+        )
+      ]);
       if (!is_random_encounter) {
         await i.update({
           embeds: [embed, createNotificationEmbed('Ooops!', 'It is a tie!')],
@@ -456,24 +463,6 @@ const startDuel = async (
     } else if (weapon_text) {
       armory_text = weapon_text;
     }
-    // if (winner.weapon) {
-    //   const weapon = weapons[winner.weapon];
-    //   armory_text = armory_text.replaceAll(
-    //     winner.weapon.toUpperCase(),
-    //     `${weapon.emoji ?? ''}${bold(winner.weapon.toUpperCase())}${
-    //       weapon.emoji ?? ''
-    //     }`
-    //   );
-    // }
-    // if (loser.armor) {
-    //   const armor = armors[loser.weapon];
-    //   armory_text = armory_text.replaceAll(
-    //     loser.armor.toUpperCase(),
-    //     `${armor.emoji ?? ''}${bold(loser.armor.toUpperCase())}${
-    //       armor.emoji ?? ''
-    //     }`
-    //   );
-    // }
     const winnerRollText = `${Math.floor(winnerRoll * 100) + 1}/100`;
     const loserRollText = `${Math.floor(loserRoll * 100) + 1}/100`;
     let duel_text = duel_texts.find((d) => d.name === boundName)[perspective];
@@ -612,6 +601,8 @@ const play = async (interaction) => {
       });
       return;
     }
+    user_global.latest_play_button_click = new Date();
+    await user_global.save();
     // TODO: Get this from a global state.
     const isGameStarted = true;
     if (!isGameStarted) {
@@ -681,6 +672,7 @@ const play = async (interaction) => {
               user.gold -= weapon.cost;
               user.weapon = weapon.name;
               user.attack_power = BASE_ATTACK_POWER + weapon.attack_power;
+              user.has_ever_bought_weapon = true;
               await user.save({ session });
               await i.update({
                 embeds: [
@@ -717,6 +709,7 @@ const play = async (interaction) => {
             } else {
               user.gold -= armor.cost;
               user.armor = armor.name;
+              user.has_ever_bought_armor = true;
               await user.save({ session });
               await i.update({
                 embeds: [
@@ -756,6 +749,8 @@ const play = async (interaction) => {
             discord_id: i.user.id,
             health_points: { $gt: 0 }
           });
+          user.is_ever_clicked_battle_button = true;
+          await user.save();
           if (!user) {
             await i.update({
               content: 'You have died. You cannot play anymore.',
@@ -841,6 +836,8 @@ const play = async (interaction) => {
             discord_id: i.user.id,
             health_points: { $gt: 0 }
           });
+          user.is_ever_clicked_random_button = true;
+          await user.save();
           if (!user) {
             await i.update({
               content: 'You have died. You cannot play anymore.',
@@ -1564,7 +1561,7 @@ const play = async (interaction) => {
                           random.scenario
                         )}\n\n<:bits:1138765781065285662>${
                           random.bits
-                        }\n\n${bold('Result:')}${random.outcome}`
+                        }\n\n${bold('Result:')}\n${random.outcome}`
                       )
                     ],
                     ephemeral: true

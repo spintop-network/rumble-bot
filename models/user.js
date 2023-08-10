@@ -10,7 +10,21 @@ const UserSchema = new mongoose.Schema(
     health_potion_cost: Number,
     gold: Number,
     weapon: String,
-    armor: String
+    armor: String,
+    latest_play_button_click: Date,
+    latest_battle_datetime: Date,
+    is_ever_clicked_battle_button: {
+      $type: Boolean,
+      default: false
+    },
+    is_ever_clicked_random_button: {
+      $type: Boolean,
+      default: false
+    },
+    has_seen_tie_message: {
+      $type: Boolean,
+      default: false
+    }
   },
   {
     typeKey: '$type',
