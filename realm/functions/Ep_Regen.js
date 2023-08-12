@@ -114,10 +114,17 @@ const ep_regen = async (
         session,
         ordered: false
       });
-      await notificationsCol.insertMany(bulkOperations, {
-        session,
-        ordered: false
-      });
+      const players_except_never_played = will_inserted_deaths.filter(
+        (i) =>
+          will_die_users.find((j) => j.discord_id === i.discord_id)
+            ?.latest_play_button_click
+      );
+      if (players_except_never_played.length > 0) {
+        await notificationsCol.insertMany(players_except_never_played, {
+          session,
+          ordered: false
+        });
+      }
     }
     await usersCol.updateMany(
       { discord_id: { $in: will_die_users.map((i) => i.discord_id) } },
@@ -162,7 +169,6 @@ const ep_regen = async (
 };
 
 exports = async () => {
-  // TODO: Change this to environment variable.
   const serviceName = 'mongodb-atlas';
   const dbName = 'spinroyale';
   const client = context.services.get(serviceName);
