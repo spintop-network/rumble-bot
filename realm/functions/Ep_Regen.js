@@ -3,7 +3,8 @@ const sudden_death = async (
   notificationsCol,
   session,
   deathsCol,
-  duelsCol
+  duelsCol,
+  date_now
 ) => {
   const will_die_users = await usersCol
     .find(
@@ -17,9 +18,9 @@ const sudden_death = async (
   const bulkOperations = will_die_users.map((user) => ({
     type: 'sudden_death',
     discord_id: user.discord_id,
-    death_time: new Date(),
-    doc_created_at: new Date(),
-    doc_updated_at: new Date()
+    death_time: date_now,
+    doc_created_at: date_now,
+    doc_updated_at: date_now
   }));
 
   if (bulkOperations.length > 0) {
@@ -63,7 +64,7 @@ const sudden_death = async (
       will_dec_health.map((user) => ({
         type: 'sudden_health',
         discord_id: user.discord_id,
-        death_time: new Date()
+        death_time: date_now
       })),
       { session, ordered: false }
     );
@@ -77,7 +78,8 @@ const ep_regen = async (
   notificationsCol,
   session,
   deathsCol,
-  duelsCol
+  duelsCol,
+  date_now
 ) => {
   const will_die_users = await usersCol
     .find(
@@ -92,9 +94,9 @@ const ep_regen = async (
   const bulkOperations = will_die_users.map((user) => ({
     type: 'inactivity_death',
     discord_id: user.discord_id,
-    death_time: new Date(),
-    doc_created_at: new Date(),
-    doc_updated_at: new Date()
+    death_time: date_now,
+    doc_created_at: date_now,
+    doc_updated_at: date_now
   }));
 
   if (bulkOperations.length > 0) {
@@ -155,7 +157,7 @@ const ep_regen = async (
       will_dec_health.map((user) => ({
         type: 'inactivity_health',
         discord_id: user.discord_id,
-        death_time: new Date()
+        death_time: date_now
       })),
       { session, ordered: false }
     );
@@ -182,8 +184,9 @@ exports = async () => {
   const config = await configs.findOne({ id: 0 });
 
   const isGameStarted = config?.is_game_started ?? false;
+  const isGameOver = config?.is_game_over ?? false;
   const isSuddenDeathActive = config?.is_sudden_death_active ?? false;
-  if (!isGameStarted) return false;
+  if (!isGameStarted || isGameOver) return false;
 
   const session = client.startSession();
 
@@ -200,9 +203,17 @@ exports = async () => {
         { session }
       );
       if (active_user_count > 1) {
-        await ep_regen(usersCol, notifications, session, deaths, duels);
+        const now = new Date();
+        await ep_regen(usersCol, notifications, session, deaths, duels, now);
         if (isSuddenDeathActive) {
-          await sudden_death(usersCol, notifications, session, deaths, duels);
+          await sudden_death(
+            usersCol,
+            notifications,
+            session,
+            deaths,
+            duels,
+            now
+          );
         }
       }
     }, transactionOptions);

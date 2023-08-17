@@ -169,13 +169,13 @@ setInterval(async () => {
           }).session(session);
 
           if (alive_count <= 1) {
-            const config = await Config.findOne({ id: 0 })
-              .session(session)
-              .lean();
+            const config = await Config.findOne({ id: 0 }).session(session);
             const winner = await User.findOne({
               health_points: { $gt: 0 }
-            }).session(session);
-            if (config?.is_game_started && winner && !config?.is_game_over) {
+            })
+              .session(session)
+              .lean();
+            if (config?.is_game_started && !config?.is_game_over) {
               const deadUsers = await User.aggregate([
                 {
                   $lookup: {
@@ -233,11 +233,13 @@ setInterval(async () => {
               const embedBuilder = new EmbedBuilder()
                 .setTitle(':tada: We have a winner! :tada:')
                 .setDescription(
-                  `${userMention(winner.discord_id)} has won the game! \n\n` +
+                  `${userMention(
+                    winner ? winner.discord_id : deadUsers[0].discord_id
+                  )} has won the game! \n\n` +
                     bold(
                       'Pilot Name | Health Points | Kill Count | Damage Inflicted | Prize\n\n'
                     ) +
-                    [winner, ...deadUsers]
+                    (winner ? [winner, ...deadUsers] : deadUsers)
                       .slice(0, 20)
                       .map(
                         (user, index) =>
@@ -251,11 +253,8 @@ setInterval(async () => {
                 );
               const message = await channel.send({ embeds: [embedBuilder] });
               await message.pin();
-              await Config.updateOne(
-                { id: 0 },
-                { $set: { is_game_over: true } },
-                { session, upsert: true }
-              );
+              config.is_game_over = true;
+              await config.save({ session });
             }
           }
 
