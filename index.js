@@ -170,11 +170,33 @@ setInterval(async () => {
 
           if (alive_count <= 1) {
             const config = await Config.findOne({ id: 0 }).session(session);
-            const winner = await User.findOne({
-              health_points: { $gt: 0 }
-            })
-              .session(session)
-              .lean();
+            const winner = (
+              await User.aggregate(
+                [
+                  {
+                    $match: {
+                      health_points: { $gt: 0 }
+                    }
+                  },
+                  {
+                    $lookup: {
+                      from: 'stats',
+                      localField: 'discord_id',
+                      foreignField: 'discord_id',
+                      as: 'stats'
+                    }
+                  },
+                  {
+                    $set: {
+                      stats: {
+                        $first: '$stats'
+                      }
+                    }
+                  }
+                ],
+                { session }
+              )
+            )?.at(0);
             if (config?.is_game_started && !config?.is_game_over) {
               const deadUsers = await User.aggregate([
                 {
