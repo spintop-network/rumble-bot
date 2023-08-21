@@ -29,6 +29,7 @@ const { client } = require('../client');
 const Duel = require('../models/duel');
 const Death = require('../models/death');
 const Stat = require('../models/stat');
+const Config = require('../models/config');
 
 const LINE_SEPARATOR = '\n───────────────────────────────────';
 
@@ -603,8 +604,9 @@ const play = async (interaction) => {
     }
     user_global.latest_play_button_click = new Date();
     await user_global.save();
-    // TODO: Get this from a global state.
-    const isGameStarted = true;
+
+    const config = await Config.findOne({ id: 0 }).lean();
+    const isGameStarted = config.is_game_started ?? false;
     if (!isGameStarted) {
       await interaction.editReply({
         content: 'The game has not started yet!',
@@ -1645,6 +1647,7 @@ const play = async (interaction) => {
         try {
           await session.withTransaction(async () => {
             // TODO: Other users should not see other users' bot responses. Check this later.
+            // Note: Probably we don't need this but I keep it here just in case.
             if (i.user.id !== interaction.user.id) {
               await i.reply({
                 content: 'You are not allowed to use this button!',
