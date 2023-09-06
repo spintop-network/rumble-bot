@@ -1,9 +1,13 @@
 const { parse } = require('csv-parse/sync');
 const xlsx = require('node-xlsx');
+const mongoose = require('mongoose');
+const process = require('process');
 const dotenv = require('dotenv');
 const { readFileSync } = require('fs');
 const { bold } = require('discord.js');
 dotenv.config();
+
+const Config = require('./models/config');
 
 const weapons = {
   'Platinum Pan': {
@@ -274,7 +278,9 @@ const duel_texts = [
 const BASE_DAMAGE = 5;
 const BASE_ATTACK_POWER = 2;
 const BASE_ENERGY_POINTS = 6;
+const BASE_HEALTH_POINT = 100;
 const STARTER_GOLD = 130;
+const DEATH_RANDOM_DISABLE_FOR_DAYS = 2;
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -297,12 +303,35 @@ const roles = {
   normie: isProduction ? '893527554718326827' : process.env.NORMIE_ROLE_ID
 };
 
+const isRandomDeathActive = async () => {
+  mongoose.connect(process.env.MONGODB_URI);
+  const config = await Config.findOne({ id: 0 }).lean();
+  const { game_start_date } = config;
+  const now = new Date();
+  const diff = now - game_start_date;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return days >= DEATH_RANDOM_DISABLE_FOR_DAYS;
+};
+
+const getRandoms = async () => {
+  const isActive = await isRandomDeathActive();
+  if (isActive) {
+    return [...bad_and_good_randoms, ...neutral_randoms, ...battle_randoms];
+  } else {
+    const death_excluded = bad_and_good_randoms.filter(
+      (i) => i.outcome !== '-Eliminated'
+    );
+    return [...death_excluded, ...neutral_randoms, ...battle_randoms];
+  }
+};
+
 module.exports = {
   weapons,
   armors,
   BASE_DAMAGE,
   BASE_ENERGY_POINTS,
   BASE_ATTACK_POWER,
+  BASE_HEALTH_POINT,
   STARTER_GOLD,
   rooms,
   roles,
@@ -310,5 +339,5 @@ module.exports = {
   armor_texts,
   weapon_texts,
   duel_bounds,
-  randoms: [...bad_and_good_randoms, ...neutral_randoms, ...battle_randoms]
+  getRandoms
 };

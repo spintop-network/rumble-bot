@@ -10,7 +10,7 @@ const Notification = require('../models/notification');
 const Config = require('../models/config');
 const Duel = require('../models/duel');
 
-(async () => {
+const resetDb = async () => {
   await Promise.all([
     User.deleteMany({}),
     Stat.deleteMany({}),
@@ -19,6 +19,11 @@ const Duel = require('../models/duel');
     Config.deleteMany({}),
     Duel.deleteMany({})
   ]);
-  process.exit(0);
   console.log('Database reset.');
-})();
+};
+
+if (require.main === module) {
+  resetDb().then(() => process.exit(0));
+}
+
+module.exports = { resetDb };

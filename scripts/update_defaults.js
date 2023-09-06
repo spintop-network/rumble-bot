@@ -8,7 +8,8 @@ mongoose.connect(process.env.MONGODB_URI);
 const {
   BASE_ENERGY_POINTS,
   BASE_ATTACK_POWER,
-  STARTER_GOLD
+  STARTER_GOLD,
+  BASE_HEALTH_POINT
 } = require('../constants');
 
 const User = require('../models/user');
@@ -24,7 +25,7 @@ const User = require('../models/user');
             gold: STARTER_GOLD,
             energy_points: BASE_ENERGY_POINTS,
             attack_power: BASE_ATTACK_POWER,
-            health_points: 100
+            health_points: BASE_HEALTH_POINT
           }
         }
       );

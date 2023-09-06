@@ -16,7 +16,7 @@ const {
   weapons,
   BASE_ATTACK_POWER,
   armors,
-  randoms,
+  getRandoms,
   rooms,
   BASE_ENERGY_POINTS,
   BASE_DAMAGE,
@@ -607,9 +607,17 @@ const play = async (interaction) => {
 
     const config = await Config.findOne({ id: 0 }).lean();
     const isGameStarted = config.is_game_started ?? false;
+    const isGameOver = config.is_game_over ?? false;
     if (!isGameStarted) {
       await interaction.editReply({
         content: 'The game has not started yet!',
+        ephemeral: true
+      });
+      return;
+    }
+    if (isGameOver) {
+      await interaction.editReply({
+        content: 'The game is over!',
         ephemeral: true
       });
       return;
@@ -824,6 +832,7 @@ const play = async (interaction) => {
           await session.endSession();
         }
       } else if (i.customId === 'random_encounter') {
+        const randoms = await getRandoms();
         let isThereOtherPlayer;
         const session = await mongoose.startSession();
         try {
