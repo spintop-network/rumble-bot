@@ -72,6 +72,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
+const sendMessageAndPin = async (channel, message) => {
+  const sentMessage = await channel.send(message);
+  await sentMessage.pin();
+};
+
 setInterval(async () => {
   if (mongoose.connection.readyState !== 1) return;
   const session = await mongoose.startSession();
@@ -273,8 +278,7 @@ setInterval(async () => {
                       )
                       .join('\n')
                 );
-              const message = await channel.send({ embeds: [embedBuilder] });
-              await message.pin();
+              await sendMessageAndPin(channel, { embeds: [embedBuilder] });
               config.is_game_over = true;
               await config.save({ session });
             }
@@ -331,6 +335,59 @@ setInterval(async () => {
         { is_duel_in_progress: false },
         { session }
       );
+    });
+  } catch (error) {
+    console.error('Transaction aborted:', error);
+  } finally {
+    await session.endSession();
+  }
+}, 10000);
+
+setInterval(async () => {
+  if (mongoose.connection.readyState !== 1) return;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const config = await Config.findOne({ id: 0 }).session(session);
+      // if (!config?.game_start_date) return;
+      // if (!config?.is_game_started || config?.is_game_over) return;
+      const channel =
+        (await client.channels.cache.get(rooms.feed)) ||
+        (await client.channels.fetch(rooms.feed));
+      if (!channel) return;
+      let next_ep_regen_date = config?.game_start_date;
+      while (next_ep_regen_date < Date.now()) {
+        const new_date = new Date(next_ep_regen_date);
+        new_date.setTime(new_date.getTime() + 4 * 60 * 60 * 1000);
+        next_ep_regen_date = new_date;
+      }
+      const messageContent = `Next EP regen <t:${Math.floor(
+        next_ep_regen_date.getTime() / 1000
+      )}:R>`;
+      const messages = await channel.messages.fetchPinned();
+      const epRegenMessages = messages.filter((i) =>
+        i.content.startsWith('Next EP regen')
+      );
+      if (epRegenMessages.size > 1) {
+        for await (const message of epRegenMessages.values()) {
+          await message.delete();
+        }
+        await sendMessageAndPin(channel, messageContent);
+      } else if (epRegenMessages.size === 1) {
+        const message = epRegenMessages.first();
+        const timestampSecond = message.content
+          .slice(message.content.indexOf('<t:'), messageContent.indexOf(':R>'))
+          .replace('<t:', '');
+        if (
+          Math.floor(next_ep_regen_date.getTime() / 1000) >
+          parseInt(timestampSecond)
+        ) {
+          await message.delete();
+          await sendMessageAndPin(channel, messageContent);
+        }
+      } else {
+        await sendMessageAndPin(channel, messageContent);
+      }
     });
   } catch (error) {
     console.error('Transaction aborted:', error);
