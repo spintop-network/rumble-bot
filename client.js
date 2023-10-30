@@ -44,11 +44,6 @@ client.once(Events.ClientReady, async (c) => {
         ':large_orange_diamond: 16th to 20th: $5 + Tier 1 Weapon NFT (approx. $4)\n'
     );
 
-  // prettier-ignore
-  const registerEmbed2 = new EmbedBuilder()
-    .setTitle('Registration for Spintop\'s Cobot Rumble')
-    .setDescription('Are you here for Cobot Rumble? Click the link and go to registration channel!' + '\n\n' + 'https://discord.com/channels/893489228502167615/1131127969734213652');
-
   const rulesEmbed = new EmbedBuilder().setDescription(
     'Hello, pilots!\n' +
       '\n' +
@@ -178,11 +173,6 @@ client.once(Events.ClientReady, async (c) => {
       channelId: rooms.register,
       embeds: [registerEmbed],
       components: [registerRow]
-    },
-    {
-      channelId: rooms.verification,
-      embeds: [registerEmbed2],
-      components: []
     },
     {
       channelId: rooms.pilots_handbook,
