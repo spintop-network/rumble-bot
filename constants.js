@@ -299,7 +299,7 @@ const rooms = {
 };
 
 const roles = {
-  pilot: isProduction ? '1131877359662923817' : process.env.PILOT_ROLE_ID,
+  pilot: isProduction ? '1168499177366503454' : process.env.PILOT_ROLE_ID,
   normie: isProduction ? '893527554718326827' : process.env.NORMIE_ROLE_ID
 };
 
