@@ -114,6 +114,23 @@ const leaderboard = async (interaction) => {
         (user) => user.discord_id === interaction.user.id
       );
     }
+    const formattedUsers = first_20_users.map(
+      (user, index) =>
+        `${index + 1}. ${userMention(user.discord_id)} | ${
+          user.health_points
+        } | ${user.stats.kills ?? 0} | ${user.stats.inflicted_damage ?? 0}`
+    );
+    if (!is_user_displayed && currentUserIndex !== -1) {
+      const currentUser = users[currentUserIndex];
+      formattedUsers.push(
+        '\n\n' +
+          `${currentUserIndex + 1}. ${userMention(currentUser.discord_id)} | ${
+            currentUser.health_points
+          } | ${currentUser.stats.kills ?? 0} | ${
+            currentUser.stats.inflicted_damage ?? 0
+          }`
+      );
+    }
     await interaction.reply({
       embeds: [
         new EmbedBuilder().setDescription(
@@ -123,25 +140,7 @@ const leaderboard = async (interaction) => {
             '\n\n' +
             bold('Pilot Name | Health Points | Kill Count | Damage Inflicted') +
             '\n\n' +
-            [
-              ...first_20_users.map(
-                (user, index) =>
-                  `${index + 1}. ${userMention(user.discord_id)} | ${
-                    user.health_points
-                  } | ${user.stats.kills ?? 0} | ${
-                    user.stats.inflicted_damage ?? 0
-                  }`
-              ),
-              ...(!is_user_displayed && currentUserIndex !== -1
-                ? [
-                    `${currentUserIndex + 1}. ${userMention(
-                      users[currentUserIndex].discord_id
-                    )} | ${users[currentUserIndex].health_points} | ${
-                      users[currentUserIndex].stats.kills ?? 0
-                    } | ${users[currentUserIndex].stats.inflicted_damage ?? 0}`
-                  ]
-                : [])
-            ].join('\n')
+            structuredClone(formattedUsers).join('\n')
         )
       ],
       ephemeral: true
