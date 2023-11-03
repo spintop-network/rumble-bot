@@ -92,3 +92,5 @@ Thumbs.db
 /config.json
 
 /realm_dev/
+config_prod.json
+config_test.json

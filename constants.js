@@ -280,7 +280,7 @@ const BASE_ATTACK_POWER = 2;
 const BASE_ENERGY_POINTS = 6;
 const BASE_HEALTH_POINT = 100;
 const STARTER_GOLD = 130;
-const DEATH_RANDOM_DISABLE_FOR_DAYS = 2;
+const DEATH_RANDOM_DISABLE_FOR_DAYS = 3;
 
 const isProduction = process.env.NODE_ENV === 'production';
 

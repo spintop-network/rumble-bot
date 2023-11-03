@@ -352,10 +352,11 @@ setInterval(async () => {
       // if (!config?.game_start_date) return;
       // if (!config?.is_game_started || config?.is_game_over) return;
       const channel =
-        (await client.channels.cache.get(rooms.feed)) ||
-        (await client.channels.fetch(rooms.feed));
+        (await client.channels.cache.get(rooms.game)) ||
+        (await client.channels.fetch(rooms.game));
       if (!channel) return;
-      let next_ep_regen_date = config?.game_start_date;
+      let next_ep_regen_date = new Date(config?.game_start_date);
+      next_ep_regen_date.setHours(next_ep_regen_date.getHours() - 1);
       while (next_ep_regen_date < Date.now()) {
         const new_date = new Date(next_ep_regen_date);
         new_date.setTime(new_date.getTime() + 4 * 60 * 60 * 1000);
