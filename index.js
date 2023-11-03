@@ -75,6 +75,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 const sendMessageAndPin = async (channel, message) => {
   const sentMessage = await channel.send(message);
   await sentMessage.pin();
+  return sentMessage;
 };
 
 setInterval(async () => {
@@ -356,6 +357,7 @@ setInterval(async () => {
         (await client.channels.fetch(rooms.game));
       if (!channel) return;
       let next_ep_regen_date = new Date(config?.game_start_date);
+      // TODO: Add another variable to config for the EP regen interval
       next_ep_regen_date.setHours(next_ep_regen_date.getHours() - 1);
       while (next_ep_regen_date < Date.now()) {
         const new_date = new Date(next_ep_regen_date);
@@ -383,8 +385,7 @@ setInterval(async () => {
           Math.floor(next_ep_regen_date.getTime() / 1000) >
           parseInt(timestampSecond)
         ) {
-          await message.delete();
-          await sendMessageAndPin(channel, messageContent);
+          await message.edit(messageContent);
         }
       } else {
         await sendMessageAndPin(channel, messageContent);
