@@ -23,7 +23,8 @@ const {
   duel_bounds,
   armor_texts,
   weapon_texts,
-  duel_texts
+  duel_texts,
+  neutral_randoms
 } = require('../constants');
 const { client } = require('../client');
 const Duel = require('../models/duel');
@@ -877,7 +878,7 @@ const play = async (interaction) => {
             (await client.channels.cache.get(rooms.feed)) ||
             (await client.channels.fetch(rooms.feed));
 
-          if (random_number >= 0 && random_number <= 44) {
+          if (['good', 'bad'].includes(random.type)) {
             await session.withTransaction(async () => {
               const outcomes = random.outcome.split(',');
               const outcomesPrivate = [];
@@ -1542,13 +1543,10 @@ const play = async (interaction) => {
             )
               .sort({ doc_created_at: 1 })
               .lean();
-            if (
-              (random_number >= 45 && random_number <= 49) ||
-              !isThereOtherPlayer
-            ) {
-              if (random_number >= 50) {
-                random_number = Math.floor(Math.random() * 5 + 45);
-                random = randoms[random_number];
+            if (random.type === 'neutral' || !isThereOtherPlayer) {
+              if (random.type === 'battle') {
+                random_number = weighted_number(neutral_randoms);
+                random = neutral_randoms[random_number];
               }
               if (channel) {
                 const feedWithoutOutcome = random.feed.replaceAll(
@@ -1593,7 +1591,7 @@ const play = async (interaction) => {
                   ephemeral: true
                 });
               }
-            } else if (random_number >= 50) {
+            } else if (random.type === 'battle') {
               console.log('Battle encounter');
               if (channel) {
                 const feedWithMention = random.feed.replaceAll(

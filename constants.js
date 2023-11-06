@@ -98,9 +98,9 @@ const weapon_texts = parse(readFileSync('./data/weapon.tsv', 'utf8'), {
 
 const randoms_file = readFileSync('./data/randoms.xlsx');
 
-const bad_and_good_randoms = xlsx
+const bad_randoms = xlsx
   .parse(randoms_file, {
-    sheets: ['Bad Random Encounters (27)', 'Good Random Encounters (19)']
+    sheets: ['Bad Random Encounters (27)']
   })
   .flatMap((sheet) => sheet.data.slice(1))
   .filter((i) => i.length)
@@ -118,6 +118,47 @@ const bad_and_good_randoms = xlsx
       .replace('Outcome:\n', '')
       .trim();
     return {
+      type: 'bad',
+      scenario: arr[0]
+        .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
+        .replace('Scenario:\n', '')
+        .trim(),
+      bits: arr[0]
+        .slice(bits_start, outcome_start)
+        .replace('BITS:\n', '')
+        .trim(),
+      outcome,
+      feed: arr[1].replace('Feed:\n', '').trim(),
+      weight: [
+        '-Eliminated',
+        'Upgraded your weapon to Nanobot Swarm Guidance System'
+      ].includes(outcome)
+        ? 1
+        : 2
+    };
+  });
+
+const good_randoms = xlsx
+  .parse(randoms_file, {
+    sheets: ['Good Random Encounters (19)']
+  })
+  .flatMap((sheet) => sheet.data.slice(1))
+  .filter((i) => i.length)
+  .map((row) => row.slice(1))
+  // TODO: Remove below filter after adding pot good encounter.
+  .filter((i) => i.length > 1)
+  // Below map clears the side notes from excel. (Texts outside of the table.)
+  .map((arr) => arr.slice(0, 2))
+  .map((arr) => {
+    const scenario_start = arr[0].indexOf('Scenario:\n');
+    const bits_start = arr[0].indexOf('BITS:\n');
+    const outcome_start = arr[0].indexOf('Outcome:\n');
+    const outcome = arr[0]
+      .slice(outcome_start)
+      .replace('Outcome:\n', '')
+      .trim();
+    return {
+      type: 'good',
       scenario: arr[0]
         .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
         .replace('Scenario:\n', '')
@@ -148,6 +189,7 @@ const neutral_randoms = xlsx
     const bits_start = arr[0].indexOf('BITS:\n');
     const outcome_start = arr[0].indexOf('Outcome:\n');
     return {
+      type: 'neutral',
       scenario: arr[0]
         .slice(scenario_start + 'Scenario\n\n'.length, bits_start)
         .replace('Scenario:\n', '')
@@ -173,6 +215,7 @@ const battle_randoms = xlsx
   .map((arr) => {
     const scenario_start = arr[0].indexOf('Scenario:\n');
     return {
+      type: 'battle',
       scenario: arr[0]
         .slice(scenario_start + 'Scenario\n\n'.length)
         .replace('Scenario:\n', '')
@@ -316,12 +359,22 @@ const isRandomDeathActive = async () => {
 const getRandoms = async () => {
   const isActive = await isRandomDeathActive();
   if (isActive) {
-    return [...bad_and_good_randoms, ...neutral_randoms, ...battle_randoms];
+    return [
+      ...bad_randoms,
+      ...good_randoms,
+      ...neutral_randoms,
+      ...battle_randoms
+    ];
   } else {
-    const death_excluded = bad_and_good_randoms.filter(
+    const death_excluded = bad_randoms.filter(
       (i) => i.outcome !== '-Eliminated'
     );
-    return [...death_excluded, ...neutral_randoms, ...battle_randoms];
+    return [
+      ...death_excluded,
+      ...good_randoms,
+      ...neutral_randoms,
+      ...battle_randoms
+    ];
   }
 };
 
@@ -339,5 +392,6 @@ module.exports = {
   armor_texts,
   weapon_texts,
   duel_bounds,
-  getRandoms
+  getRandoms,
+  neutral_randoms
 };
