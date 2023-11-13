@@ -185,7 +185,11 @@ exports = async () => {
 
   const isGameStarted = config?.is_game_started ?? false;
   const isGameOver = config?.is_game_over ?? false;
-  const isSuddenDeathActive = config?.is_sudden_death_active ?? false;
+  // is game started 7 days ago? if yes, sudden death is active. config.game_start_date + 7 days
+  const isSuddenDeathActive = config.game_start_date
+    ? new Date(config.game_start_date).getTime() + 7 * 24 * 60 * 60 * 1000 <=
+      new Date().getTime()
+    : false;
   if (!isGameStarted || isGameOver) return false;
 
   const session = client.startSession();

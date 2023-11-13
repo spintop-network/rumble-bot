@@ -17,7 +17,6 @@ const game_start_date_cmd = process.argv[2];
       await Config.create({
         is_game_over: false,
         is_game_started: false,
-        is_sudden_death_active: false,
         is_register_closed: false,
         ...(game_start_date_cmd && {
           game_start_date: new Date(game_start_date_cmd)
