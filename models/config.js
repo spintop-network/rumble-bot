@@ -3,9 +3,7 @@ const mongoose = require('mongoose');
 const ConfigSchema = new mongoose.Schema(
   {
     is_game_over: Boolean,
-    is_game_started: Boolean,
     game_start_date: Date,
-    is_register_closed: Boolean,
     id: {
       $type: Number,
       default: 0

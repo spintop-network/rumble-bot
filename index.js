@@ -203,7 +203,10 @@ setInterval(async () => {
                 { session }
               )
             )?.at(0);
-            if (config?.is_game_started && !config?.is_game_over) {
+            const is_game_started = config?.game_start_date
+              ? new Date() >= config?.game_start_date
+              : false;
+            if (is_game_started && !config?.is_game_over) {
               const deadUsers = await User.aggregate([
                 {
                   $lookup: {

@@ -13,8 +13,6 @@ const startGame = async () => {
       await Config.updateOne(
         { id: 0 },
         {
-          is_game_started: true,
-          is_register_closed: true,
           game_start_date: new Date()
         },
         { session }

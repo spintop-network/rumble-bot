@@ -183,7 +183,9 @@ exports = async () => {
 
   const config = await configs.findOne({ id: 0 });
 
-  const isGameStarted = config?.is_game_started ?? false;
+  const isGameStarted = config?.game_start_date
+    ? new Date() >= new Date(config.game_start_date)
+    : false;
   const isGameOver = config?.is_game_over ?? false;
   // is game started 7 days ago? if yes, sudden death is active. config.game_start_date + 7 days
   const isSuddenDeathActive = config.game_start_date

@@ -607,7 +607,9 @@ const play = async (interaction) => {
     await user_global.save();
 
     const config = await Config.findOne({ id: 0 }).lean();
-    const isGameStarted = config.is_game_started ?? false;
+    const isGameStarted = config.game_start_date
+      ? new Date() >= config.game_start_date
+      : false;
     const isGameOver = config.is_game_over ?? false;
     if (!isGameStarted) {
       await interaction.editReply({

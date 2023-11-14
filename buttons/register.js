@@ -12,7 +12,10 @@ const register = async (interaction) => {
   const session = await mongoose.startSession();
   try {
     const config = await Config.findOne({ id: 0 });
-    if (config.is_register_closed) {
+    const is_register_closed = config.game_start_date
+      ? new Date() >= config.game_start_date
+      : false;
+    if (is_register_closed) {
       await interaction.reply({
         content: 'Registration is closed!',
         ephemeral: true
