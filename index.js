@@ -259,25 +259,25 @@ setInterval(async () => {
               ]);
               const prizes = [
                 '$150 + Crypto Queen NFT',
-                '$100 Bridger NFT',
-                '$50 Sam NFT',
-                '$30 Lunatic NFT',
-                '$20 Shardeus NFT',
-                '$15 Meda Hero NFT',
-                '$15 Meda Hero NFT',
-                '$15 Meda Hero NFT',
-                '$15 Meda Hero NFT',
-                '$15 Meda Hero NFT',
-                '$10 Tier 1 Weapon NFT',
-                '$10 Tier 1 Weapon NFT',
-                '$10 Tier 1 Weapon NFT',
-                '$10 Tier 1 Weapon NFT',
-                '$10 Tier 1 Weapon NFT',
-                '$5 Tier 1 Weapon NFT',
-                '$5 Tier 1 Weapon NFT',
-                '$5 Tier 1 Weapon NFT',
-                '$5 Tier 1 Weapon NFT',
-                '$5 Tier 1 Weapon NFT'
+                '$100 + Bridger NFT',
+                '$50 + Sam NFT',
+                '$30 + Lunatic NFT',
+                '$20 + Shardeus NFT',
+                '$15 + Meda Hero NFT',
+                '$15 + Meda Hero NFT',
+                '$15 + Meda Hero NFT',
+                '$15 + Meda Hero NFT',
+                '$15 + Meda Hero NFT',
+                '$10 + Tier 1 Weapon NFT',
+                '$10 + Tier 1 Weapon NFT',
+                '$10 + Tier 1 Weapon NFT',
+                '$10 + Tier 1 Weapon NFT',
+                '$10 + Tier 1 Weapon NFT',
+                '$5 + Tier 1 Weapon NFT',
+                '$5 + Tier 1 Weapon NFT',
+                '$5 + Tier 1 Weapon NFT',
+                '$5 + Tier 1 Weapon NFT',
+                '$5 + Tier 1 Weapon NFT'
               ];
               const embedBuilder = new EmbedBuilder()
                 .setTitle(':tada: We have a winner! :tada:')
@@ -296,7 +296,7 @@ setInterval(async () => {
                             user.health_points
                           } | ${user.stats?.kills ?? 0} | ${
                             user.stats?.inflicted_damage ?? 0
-                          } | ${bold('$' + prizes[index])}`
+                          } | ${bold(prizes[index])}`
                       )
                       .join('\n')
                 );
