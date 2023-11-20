@@ -371,8 +371,6 @@ setInterval(async () => {
   try {
     await session.withTransaction(async () => {
       const config = await Config.findOne({ id: 0 }).session(session);
-      // if (!config?.game_start_date) return;
-      // if (!config?.is_game_started || config?.is_game_over) return;
       const channel =
         (await client.channels.cache.get(rooms.game)) ||
         (await client.channels.fetch(rooms.game));
@@ -392,6 +390,13 @@ setInterval(async () => {
       const epRegenMessages = messages.filter((i) =>
         i.content.startsWith('Next EP regen')
       );
+      // TODO: Test this code block.
+      if (config?.is_game_over) {
+        for await (const message of epRegenMessages.values()) {
+          await message.delete();
+        }
+        return;
+      }
       if (epRegenMessages.size > 1) {
         for await (const message of epRegenMessages.values()) {
           await message.delete();
