@@ -95,5 +95,5 @@ Thumbs.db
 
 /realm_dev/
 config_prod.json
-config_test.json
-config_test2.json
+config_test_spintoptest.json
+config_test_enesizgi.json
