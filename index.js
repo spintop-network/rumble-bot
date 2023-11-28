@@ -414,7 +414,12 @@ setInterval(async () => {
           await message.edit(messageContent);
         }
       } else {
-        await sendMessageAndPin(channel, messageContent);
+        const isGameStarted = config.game_start_date
+          ? new Date() >= config.game_start_date
+          : false;
+        if (isGameStarted) {
+          await sendMessageAndPin(channel, messageContent);
+        }
       }
     });
   } catch (error) {

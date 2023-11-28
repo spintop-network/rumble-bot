@@ -80,6 +80,7 @@ jspm_packages/
 # dotenv environment variables file
 .env
 .env.production
+.env.development
 
 # next.js build output
 .next
@@ -95,3 +96,4 @@ Thumbs.db
 /realm_dev/
 config_prod.json
 config_test.json
+config_test2.json
