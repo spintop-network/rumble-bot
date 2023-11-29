@@ -64,7 +64,7 @@ client.once(Events.ClientReady, async (c) => {
         ' Health point. You start with 100 HP, but if it reaches 0, you’re (your Cobot, to be more precise) gone.\n' +
         '\n' +
         bold(':diamond_shape_with_a_dot_inside: EP:') +
-        'Energy point. Your actions depend on the energy points you have. In total, you have 6 energy points. Unlike visiting the Armory, Battle and Random Encounters cost you an EP each. An EP regenerates every 4 hours, and in addition to an EP, you\'ll receive 10 Credits every 4 hours. If you have 6/6 EP and not taking any action, such as Battle or Random Encounters, you’ll lose 5 HP for every inactive 4-hour cycle.' +
+        'Energy point. Your actions depend on the energy points you have. In total, you have 6 energy points. Unlike visiting the Armory, Battle and Random Encounters cost you an EP each. An EP regenerates every 4 hours (the first EP regeneration will happen in 3 hours) and in addition to an EP, you\'ll receive 10 Credits every 4 hours. If you have 6/6 EP and not taking any action, such as Battle or Random Encounters, you’ll lose 5 HP for every inactive 4-hour cycle.' +
         '\n\n' +
         bold(':diamond_shape_with_a_dot_inside: AP:') +
         ' Attack power. Your attack power is 2 as default; however, you can increase this by buying or earning weapons.\n' +
@@ -121,23 +121,23 @@ client.once(Events.ClientReady, async (c) => {
       ':large_blue_diamond: Instant elimination*\n' +
       '\n\n' +
       italic(
-        '*Instant elimination on Random Encounters will be triggered after the 9th of November.'
+        '*Instant elimination on Random Encounters will be triggered after the 9th of December.'
       ) +
       '\n\n' +
       bold(':diamond_shape_with_a_dot_inside: Overload Protocol:') +
-      ' Spintop’s Cobot Rumble will take 7 days in total; from the 6th of November to the 13th of November, there will be no exception. The main reason is I’ve created this artificial dimension to host you for 7 days tops. After the 13th of November, I will activate my beloved Overload Protocol; this beauty will damage you 5 HP every 4 hours until your HP reaches 0. Your Cobot will eventually become a scrap pile if the rumble doesn’t end in 7 days.\n' +
+      ' Spintop’s Cobot Rumble will take 7 days in total; from the 6th of December to the 13th of December, there will be no exception. The main reason is I’ve created this artificial dimension to host you for 7 days tops. After the 13th of December, I will activate my beloved Overload Protocol; this beauty will damage you 5 HP every 4 hours until your HP reaches 0. Your Cobot will eventually become a scrap pile if the rumble doesn’t end in 7 days.\n' +
       '\n' +
       bold('Rewards:') +
       '\n' +
       '\n' +
-      ':large_orange_diamond: 1st: $150 + Crypto Queen NFT (approx. $60)\n' +
-      ':large_orange_diamond: 2nd: $100 + Bridger NFT (approx. $50)\n' +
-      ':large_orange_diamond: 3rd: $50 + Sam NFT (approx. $45)\n' +
-      ':large_orange_diamond: 4th: $30 + Lunatic NFT (approx. $40)\n' +
-      ':large_orange_diamond: 5th: $20 + Shardeus NFT (approx. $40)\n' +
-      ':large_orange_diamond: 6th to 10th: $15 + Meda Hero NFT (approx. $5)\n' +
-      ':large_orange_diamond: 11th to 15th: $10 + Tier 1 Weapon NFT (approx. $4)\n' +
-      ':large_orange_diamond: 16th to 20th: $5 + Tier 1 Weapon NFT (approx. $4)\n'
+      ':large_orange_diamond: 1st: $150 + Spinner NFT (approx. $60)\n' +
+      ':large_orange_diamond: 2nd: $100 + Spinner NFT (approx. $60)\n' +
+      ':large_orange_diamond: 3rd: $50 + Spinner NFT (approx. $60)\n' +
+      ':large_orange_diamond: 4th: $30 + Spinner NFT (approx. $60)\n' +
+      ':large_orange_diamond: 5th: $20 + Spinner NFT (approx. $60)\n' +
+      ':large_orange_diamond: 6th to 10th: $15 + Spinner NFT (approx. $60)\n' +
+      ':large_orange_diamond: 11th to 15th: $10 + Tier 1 Weapon NFT (approx. $3)\n' +
+      ':large_orange_diamond: 16th to 20th: $5 + Tier 1 Weapon NFT (approx. $3)\n'
   );
 
   const gameEmbed = new EmbedBuilder().setDescription(
