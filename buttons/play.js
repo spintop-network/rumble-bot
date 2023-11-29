@@ -850,8 +850,6 @@ const play = async (interaction) => {
             discord_id: i.user.id,
             health_points: { $gt: 0 }
           });
-          user.is_ever_clicked_random_button = true;
-          await user.save();
           if (!user) {
             await i.update({
               content: 'You have died. You cannot play anymore.',
@@ -861,6 +859,8 @@ const play = async (interaction) => {
             });
             throw new Error('User is dead.');
           }
+          user.is_ever_clicked_random_button = true;
+          await user.save({ session });
           if (user.energy_points <= 0) {
             embed = await createEmbed(user);
             await i.update({

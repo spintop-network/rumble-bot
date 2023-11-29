@@ -207,7 +207,7 @@ setInterval(async () => {
               ? new Date() >= config?.game_start_date
               : false;
             if (is_game_started && !config?.is_game_over) {
-              const deadUsers = await User.aggregate([
+              let deadUsers = await User.aggregate([
                 {
                   $lookup: {
                     from: 'stats',
@@ -257,6 +257,8 @@ setInterval(async () => {
                   $limit: 20
                 }
               ]);
+              // Update the health points of the dead users to 0 for display purposes
+              deadUsers = deadUsers.map((i) => ({ ...i, health_points: 0 }));
               const prizes = [
                 '$150 + Spinner NFT',
                 '$100 + Spinner NFT',

@@ -50,7 +50,7 @@ const leaderboard = async (interaction) => {
       }
     ]);
     if (aliveUsers.length < 20) {
-      const deadUsers = await User.aggregate([
+      let deadUsers = await User.aggregate([
         {
           $lookup: {
             from: 'stats',
@@ -97,6 +97,8 @@ const leaderboard = async (interaction) => {
           }
         }
       ]);
+      // Update dead users health points to 0 for display purposes
+      deadUsers = deadUsers.map((user) => ({ ...user, health_points: 0 }));
       users = [...aliveUsers, ...deadUsers];
     } else {
       users = aliveUsers;
