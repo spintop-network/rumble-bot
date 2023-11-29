@@ -30,18 +30,18 @@ client.once(Events.ClientReady, async (c) => {
         '\n' +
         'Welcome to Spintop’s Cobot Rumble! If I am correct, you want to prove yourself as a capable pilot and win the big prize. That’s fine, but let me remind you this: this is no place for fragile people. You will destroy or be destroyed; there’s nothing in between.\n' +
         '\n' +
-        'When you register to be a pilot by pressing the “Register” button, you’ll be given the “Novice Pilot” role. With your new assigned role, you are officially ready to kickstart your journey as a Cobot pilot! You will be ready, but the event starts on the 6th of November, Monday, so you’ll have to wait a little while. Registrations will conclude on the 6th of November, which means no one can register after the 6th of November. After completing your registration process by pressing the “Register” button, visit the #pilots-handbook channel to learn more about Spintop’s Cobot Rumble! Also, you can chill with other pilots on #pilots-lounge and even learn some tricks while developing strategies by chatting with experienced pilots.\n' +
+        'When you register to be a pilot by pressing the “Register” button, you’ll be given the “Novice Pilot” role. With your new assigned role, you are officially ready to kickstart your journey as a Cobot pilot! You will be ready, but the event starts on Wednesday, the 6th of December, so you’ll have to wait a little while. Registrations will conclude on the 6th of December, which means no one can register after the 6th of December. After completing your registration process by pressing the “Register” button, visit the #pilots-handbook channel to learn more about Spintop’s Cobot Rumble! Also, you can chill with other pilots on #pilots-lounge and even learn some tricks while developing strategies by chatting with experienced pilots.\n' +
         '\n' +
         '\n' +
         'Oh, and a little reminder: if you manage to be the one in the last 20 pilots, here are the rewards you will get:\n' +
-        ':large_orange_diamond: 1st: $150 + Crypto Queen NFT (approx. $60)\n' +
-        ':large_orange_diamond: 2nd: $100 + Bridger NFT (approx. $50)\n' +
-        ':large_orange_diamond: 3rd: $50 + Sam NFT (approx. $45)\n' +
-        ':large_orange_diamond: 4th: $30 + Lunatic NFT (approx. $40)\n' +
-        ':large_orange_diamond: 5th: $20 + Shardeus NFT (approx. $40)\n' +
-        ':large_orange_diamond: 6th to 10th: $15 + Meda Hero NFT (approx. $5)\n' +
-        ':large_orange_diamond: 11th to 15th: $10 + Tier 1 Weapon NFT (approx. $4)\n' +
-        ':large_orange_diamond: 16th to 20th: $5 + Tier 1 Weapon NFT (approx. $4)\n'
+        ':large_orange_diamond: 1st: $150 + Spinner NFT (approx. $60)\n' +
+        ':large_orange_diamond: 2nd: $100 + Spinner NFT (approx. $60)\n' +
+        ':large_orange_diamond: 3rd: $50 + Spinner NFT (approx. $60)\n' +
+        ':large_orange_diamond: 4th: $30 + Spinner NFT (approx. $60)\n' +
+        ':large_orange_diamond: 5th: $20 + Spinner NFT (approx. $60)\n' +
+        ':large_orange_diamond: 6th to 10th: $15 + Spinner NFT (approx. $60)\n' +
+        ':large_orange_diamond: 11th to 15th: $10 + Tier 1 Weapon NFT (approx. $3)\n' +
+        ':large_orange_diamond: 16th to 20th: $5 + Tier 1 Weapon NFT (approx. $3)\n'
     );
 
   const rulesEmbed = new EmbedBuilder().setDescription(
