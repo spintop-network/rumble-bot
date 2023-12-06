@@ -1,0 +1,16 @@
+{
+    "name": "Ep_Regen_trigger",
+    "type": "SCHEDULED",
+    "config": {
+        "schedule": "0 */4 * * *",
+        "skip_catchup_events": false
+    },
+    "disabled": false,
+    "event_processors": {
+        "FUNCTION": {
+            "config": {
+                "function_name": "Ep_Regen"
+            }
+        }
+    }
+}
